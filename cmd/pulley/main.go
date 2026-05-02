@@ -1,3 +1,4 @@
+// pulley is an interactive terminal UI for GitHub pull request review.
 package main
 
 import (
@@ -25,8 +26,8 @@ func run(cmd *cobra.Command, args []string) error {
 		arg = args[0]
 	}
 	// TODO: replace with full startup flow in Unit 6
-	fmt.Fprintf(cmd.OutOrStdout(), "pulley: %q\n", arg)
-	return nil
+	_, err := fmt.Fprintf(cmd.OutOrStdout(), "pulley: %q\n", arg)
+	return err
 }
 
 func main() {

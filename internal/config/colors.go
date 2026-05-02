@@ -1,3 +1,4 @@
+// Package config provides configuration loading and defaults for pulley.
 package config
 
 import (

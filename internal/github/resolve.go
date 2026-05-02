@@ -31,20 +31,21 @@ func Resolve(client PRClient, arg string) (*PRRef, error) {
 // resolver holds injectable dependencies so Resolve can be unit-tested.
 type resolver struct {
 	client        PRClient
-	currentRepo   func() (owner, name string, err error)
+	currentRepo   func() (host, owner, name string, err error)
 	currentBranch func() (string, error)
 }
 
 func (r *resolver) resolve(arg string) (*PRRef, error) {
+	host, owner, repo, err := r.currentRepo()
+	if err != nil {
+		return nil, fmt.Errorf("get current repo: %w", err)
+	}
+
 	if n, err := strconv.Atoi(arg); err == nil {
-		owner, repo, err := r.currentRepo()
-		if err != nil {
-			return nil, fmt.Errorf("get current repo: %w", err)
-		}
 		return &PRRef{Owner: owner, Repo: repo, Number: n}, nil
 	}
 
-	if ref, err := parseURL(arg); err == nil {
+	if ref, err := parseURL(arg, host); err == nil {
 		return ref, nil
 	}
 
@@ -57,11 +58,6 @@ func (r *resolver) resolve(arg string) (*PRRef, error) {
 		}
 	}
 
-	owner, repo, err := r.currentRepo()
-	if err != nil {
-		return nil, fmt.Errorf("get current repo: %w", err)
-	}
-
 	number, err := r.client.FindPRForBranch(owner, repo, branch)
 	if err != nil {
 		return nil, fmt.Errorf("find PR for branch %q: %w", branch, err)
@@ -72,10 +68,15 @@ func (r *resolver) resolve(arg string) (*PRRef, error) {
 
 // parseURL extracts a PRRef from a GitHub pull request URL of the form
 // https://github.com/owner/repo/pull/123.
-func parseURL(rawURL string) (*PRRef, error) {
+// It validates that the URL host matches the expected host (from the current repository,
+// supporting both github.com and GitHub Enterprise).
+func parseURL(rawURL string, expectedHost string) (*PRRef, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, err
+	}
+	if u.Host != expectedHost {
+		return nil, fmt.Errorf("URL host %q does not match current repository host %q", u.Host, expectedHost)
 	}
 	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
 	if len(parts) != 4 || parts[2] != "pull" {
@@ -88,12 +89,12 @@ func parseURL(rawURL string) (*PRRef, error) {
 	return &PRRef{Owner: parts[0], Repo: parts[1], Number: n}, nil
 }
 
-func defaultCurrentRepo() (string, string, error) {
+func defaultCurrentRepo() (string, string, string, error) {
 	repo, err := repository.Current()
 	if err != nil {
-		return "", "", fmt.Errorf("get current repository: %w", err)
+		return "", "", "", fmt.Errorf("get current repository: %w", err)
 	}
-	return repo.Owner, repo.Name, nil
+	return repo.Host, repo.Owner, repo.Name, nil
 }
 
 func defaultCurrentBranch() (string, error) {

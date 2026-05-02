@@ -195,23 +195,13 @@ func (c *ghClient) GetComments(owner, repo string, number int) ([]ReviewComment,
 }
 
 func (c *ghClient) SubmitReview(owner, repo string, number int, event ReviewEvent, body string, comments []DraftComment) error {
-	type reviewComment struct {
-		Path     string `json:"path"`
-		Position int    `json:"position"`
-		Body     string `json:"body"`
-	}
 	type reviewRequest struct {
-		Body     string          `json:"body"`
-		Event    ReviewEvent     `json:"event"`
-		Comments []reviewComment `json:"comments"`
+		Body     string        `json:"body"`
+		Event    ReviewEvent   `json:"event"`
+		Comments []DraftComment `json:"comments"`
 	}
 
-	rc := make([]reviewComment, len(comments))
-	for i, dc := range comments {
-		rc[i] = reviewComment(dc)
-	}
-
-	reqBody, err := json.Marshal(reviewRequest{Body: body, Event: event, Comments: rc})
+	reqBody, err := json.Marshal(reviewRequest{Body: body, Event: event, Comments: comments})
 	if err != nil {
 		return fmt.Errorf("marshal review: %w", err)
 	}

@@ -28,9 +28,9 @@ type ReviewComment struct {
 
 // DraftComment is a comment drafted locally, not yet submitted.
 type DraftComment struct {
-	Path     string
-	Position int
-	Body     string
+	Path     string `json:"path"`
+	Position int    `json:"position"`
+	Body     string `json:"body"`
 }
 
 // PRState is the state of a pull request.
