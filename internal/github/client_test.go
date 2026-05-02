@@ -146,7 +146,7 @@ func TestParseURL(t *testing.T) {
 			wantErr:      true,
 		},
 	}
-		for _, tt := range tests {
+	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := parseURL(tt.url, tt.expectedHost)
 			if tt.wantErr {

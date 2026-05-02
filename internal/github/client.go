@@ -196,8 +196,8 @@ func (c *ghClient) GetComments(owner, repo string, number int) ([]ReviewComment,
 
 func (c *ghClient) SubmitReview(owner, repo string, number int, event ReviewEvent, body string, comments []DraftComment) error {
 	type reviewRequest struct {
-		Body     string        `json:"body"`
-		Event    ReviewEvent   `json:"event"`
+		Body     string         `json:"body"`
+		Event    ReviewEvent    `json:"event"`
 		Comments []DraftComment `json:"comments"`
 	}
 
