@@ -110,3 +110,7 @@ After each unit is implemented and tests pass:
 2. Run `/review` to get a second pass on correctness and style
 3. Run `go test -race ./...`, `golangci-lint run`, and `golangci-lint fmt`
 4. Commit the unit
+
+## Go Programming
+
+Use `go doc` to check APIs
