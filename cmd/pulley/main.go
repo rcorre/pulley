@@ -4,7 +4,12 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/rcorre/pulley/internal/config"
+	"github.com/rcorre/pulley/internal/github"
+	"github.com/rcorre/pulley/internal/tui"
 	"github.com/spf13/cobra"
 )
 
@@ -20,13 +25,43 @@ Accepts a PR number, URL, or branch name, matching the behavior of 'gh pr view'.
 	SilenceUsage: true,
 }
 
-func run(cmd *cobra.Command, args []string) error {
+func run(_ *cobra.Command, args []string) error {
 	var arg string
 	if len(args) > 0 {
 		arg = args[0]
 	}
-	// TODO: replace with full startup flow in Unit 6
-	_, err := fmt.Fprintf(cmd.OutOrStdout(), "pulley: %q\n", arg)
+
+	// Load config
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return fmt.Errorf("get home directory: %w", err)
+	}
+	configPath := filepath.Join(home, ".config", "pulley", "config.toml")
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		return fmt.Errorf("load config: %w", err)
+	}
+
+	// Create GitHub client
+	client, err := github.NewClient()
+	if err != nil {
+		return fmt.Errorf("create GitHub client: %w", err)
+	}
+
+	// Resolve PR reference
+	prRef, err := github.Resolve(client, arg)
+	if err != nil {
+		return fmt.Errorf("resolve PR: %w", err)
+	}
+
+	// Create and run TUI
+	model := tui.NewModel(cfg, client, prRef)
+	p := tea.NewProgram(
+		model,
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
+	_, err = p.Run()
 	return err
 }
 
