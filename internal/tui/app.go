@@ -5,13 +5,25 @@ import (
 	"fmt"
 	"sync"
 
+	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rcorre/pulley/internal/config"
 	"github.com/rcorre/pulley/internal/diff"
 	"github.com/rcorre/pulley/internal/github"
+	"github.com/rcorre/pulley/internal/tui/filelist"
 	"github.com/rcorre/pulley/internal/tui/statusbar"
+)
+
+// Focus identifies which panel has keyboard focus.
+type Focus int
+
+// Focus constants for the two panels that can receive keyboard input.
+const (
+	FocusFileList Focus = iota
+	FocusDiff
+	focusCount // sentinel: number of focusable panels
 )
 
 // Model is the root bubbletea model for pulley.
@@ -22,6 +34,11 @@ type Model struct {
 	styles    Styles
 	statusbar statusbar.Model
 	spinner   spinner.Model
+	filelist  filelist.Model
+	focus     Focus
+
+	leftPanelStyle  lipgloss.Style
+	rightPanelStyle lipgloss.Style
 
 	pr       *github.PR
 	diffs    []diff.FileDiff
@@ -42,6 +59,8 @@ func New(client github.PRClient, ref github.PRRef, cfg config.Config) Model {
 		styles:    NewStyles(cfg.Colors),
 		statusbar: statusbar.New(cfg.Colors),
 		spinner:   s,
+		filelist:  filelist.New(cfg),
+		focus:     FocusFileList,
 	}
 }
 
@@ -99,6 +118,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		m.statusbar.SetWidth(msg.Width)
+		fileListWidth := msg.Width / 4
+		contentHeight := msg.Height - 1
+		m.filelist.SetSize(fileListWidth, contentHeight)
+		m.leftPanelStyle = lipgloss.NewStyle().Width(fileListWidth).Height(contentHeight)
+		m.rightPanelStyle = lipgloss.NewStyle().Width(msg.Width - fileListWidth).Height(contentHeight)
 		return m, nil
 
 	case PRLoadedMsg:
@@ -106,6 +130,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.diffs = msg.Diffs
 		m.comments = msg.Comments
 		m.statusbar.SetPR(msg.PR)
+		m.filelist.SetFiles(msg.Diffs)
+		return m, nil
+
+	case filelist.FileSelectedMsg:
+		// TODO: trigger diff render for selected file when diffview is added
 		return m, nil
 
 	case ErrMsg:
@@ -115,6 +144,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if key.Matches(msg, m.keymap.Quit) {
 			return m, tea.Quit
+		}
+		if m.pr != nil {
+			if key.Matches(msg, m.keymap.Tab) {
+				m.focus = (m.focus + 1) % focusCount
+				return m, nil
+			}
+			if m.focus == FocusFileList {
+				var cmd tea.Cmd
+				m.filelist, cmd = m.filelist.Update(msg)
+				return m, cmd
+			}
 		}
 	}
 
@@ -139,6 +179,12 @@ func (m Model) View() string {
 		return m.spinner.View() + " Loading PR...\n" + statusBar
 	}
 
-	body := fmt.Sprintf("PR #%d: %s\n%d file(s) changed", m.pr.Number, m.pr.Title, len(m.diffs))
-	return body + "\n" + statusBar
+	if m.width == 0 || m.height == 0 {
+		return statusBar
+	}
+
+	leftPanel := m.leftPanelStyle.Render(m.filelist.View())
+	rightPanel := m.rightPanelStyle.Render(fmt.Sprintf("%d file(s) changed", len(m.diffs)))
+
+	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + statusBar
 }

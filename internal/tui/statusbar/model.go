@@ -64,7 +64,7 @@ func (m Model) View() string {
 		}
 	}
 
-	gap := max(1, m.width-len(left)-len(right))
+	gap := max(1, m.width-lipgloss.Width(left)-lipgloss.Width(right))
 	content := left + strings.Repeat(" ", gap) + right
 	return m.style.Width(m.width).Render(content)
 }

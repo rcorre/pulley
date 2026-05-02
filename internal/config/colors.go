@@ -55,6 +55,7 @@ func defaultColors() ColorConfig {
 		CursorBg:   ANSI(8), // bright black (subtle highlight)
 		CommentFg:  ANSI(3), // yellow
 		DraftFg:    ANSI(5), // magenta
+		FileModFg:  ANSI(3), // yellow
 		StatusFg:   ANSI(0), // black
 		StatusBg:   ANSI(4), // blue
 	}

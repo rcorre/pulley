@@ -26,6 +26,7 @@ type ColorConfig struct {
 	CursorBg   ColorValue `toml:"cursor_bg"`
 	CommentFg  ColorValue `toml:"comment_fg"`
 	DraftFg    ColorValue `toml:"draft_fg"`
+	FileModFg  ColorValue `toml:"file_mod_fg"`
 	StatusFg   ColorValue `toml:"status_fg"`
 	StatusBg   ColorValue `toml:"status_bg"`
 }
