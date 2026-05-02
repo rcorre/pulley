@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:          "pulley [<number> | <url> | <branch>]",
-	Short:        "Interactive terminal UI for GitHub pull request review",
-	Long:         `pulley opens a pull request for review in an interactive TUI.
+	Use:   "pulley [<number> | <url> | <branch>]",
+	Short: "Interactive terminal UI for GitHub pull request review",
+	Long: `pulley opens a pull request for review in an interactive TUI.
 
 Without arguments, opens the PR associated with the current branch.
 Accepts a PR number, URL, or branch name, matching the behavior of 'gh pr view'.`,
