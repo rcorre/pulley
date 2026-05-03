@@ -23,6 +23,7 @@ type Config struct {
 	CursorBg  lipgloss.Style
 	CommentFg lipgloss.Style
 	CommentBg lipgloss.Style
+	DraftFg   lipgloss.Style
 	Up        []string
 	Down      []string
 	PageUp    []string
@@ -37,6 +38,7 @@ type Model struct {
 	hlr      *syntax.Highlighter
 	lines    []string
 	hunkRows []int
+	lineMap  []diff.Line // parallel to lines; DiffPosition==0 means non-diff row
 	cursor   int
 	offset   int
 	width    int
@@ -63,10 +65,22 @@ func (m *Model) SetSize(w, h int) {
 // SetFile renders the given FileDiff with inline comments and resets cursor to the top.
 // comments should be pre-filtered to only include those for this file.
 func (m *Model) SetFile(f diff.FileDiff, comments []Comment) {
-	m.lines, m.hunkRows = Render(f, m.cfg, m.hlr, comments)
+	m.lines, m.hunkRows, m.lineMap = Render(f, m.cfg, m.hlr, comments)
 	slog.Debug("diffview: set file", "file", f.Name(), "lines", len(m.lines), "comments", len(comments))
 	m.cursor = 0
 	m.offset = 0
+}
+
+// CursorDiffLine returns the diff.Line at or above the cursor position.
+// It searches backwards from the cursor to skip over hunk header and comment rows.
+// Returns false if no diff line is found (e.g. empty file).
+func (m Model) CursorDiffLine() (diff.Line, bool) {
+	for i := m.cursor; i >= 0; i-- {
+		if i < len(m.lineMap) && m.lineMap[i].DiffPosition > 0 {
+			return m.lineMap[i], true
+		}
+	}
+	return diff.Line{}, false
 }
 
 // Update processes key messages for cursor movement and hunk navigation.

@@ -14,6 +14,7 @@ import (
 	"github.com/rcorre/pulley/internal/diff"
 	"github.com/rcorre/pulley/internal/github"
 	"github.com/rcorre/pulley/internal/syntax"
+	"github.com/rcorre/pulley/internal/tui/comment"
 	"github.com/rcorre/pulley/internal/tui/diffview"
 	"github.com/rcorre/pulley/internal/tui/filelist"
 	"github.com/rcorre/pulley/internal/tui/statusbar"
@@ -44,9 +45,11 @@ type Model struct {
 	leftPanelStyle  lipgloss.Style
 	rightPanelStyle lipgloss.Style
 
-	pr       *github.PR
-	diffs    []diff.FileDiff
-	comments []github.ReviewComment
+	pr          *github.PR
+	diffs       []diff.FileDiff
+	comments    []github.ReviewComment
+	currentFile *diff.FileDiff
+	drafts      []github.DraftComment
 
 	err    error
 	width  int
@@ -82,6 +85,7 @@ func newDiffViewConfig(cfg config.Config) diffview.Config {
 		CursorBg:  bgStyle(c.CursorBg),
 		CommentFg: fgStyle(c.CommentFg),
 		CommentBg: bgStyle(c.CommentBg),
+		DraftFg:   fgStyle(c.DraftFg),
 		Up:        k.Up,
 		Down:      k.Down,
 		PageUp:    k.PageUp,
@@ -163,13 +167,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.filelist.SetFiles(msg.Diffs)
 		if len(msg.Diffs) > 0 {
 			f := msg.Diffs[0]
-			m.diffview.SetFile(f, fileComments(msg.Comments, f.Name()))
+			m.currentFile = &m.diffs[0]
+			m.diffview.SetFile(f, m.diffComments(f.Name()))
 		}
 		return m, nil
 
 	case filelist.FileSelectedMsg:
 		slog.Debug("file selected", "file", msg.File.Name())
-		m.diffview.SetFile(msg.File, fileComments(m.comments, msg.File.Name()))
+		m.currentFile = &m.diffs[msg.Index]
+		m.diffview.SetFile(msg.File, m.diffComments(msg.File.Name()))
+		return m, nil
+
+	case comment.DraftAddedMsg:
+		slog.Info("draft added", "path", msg.Draft.Path, "position", msg.Draft.Position)
+		m.drafts = append(m.drafts, msg.Draft)
+		m.statusbar.SetDraftCount(len(m.drafts))
+		m.rerenderDiff()
 		return m, nil
 
 	case ErrMsg:
@@ -193,6 +206,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, cmd
 			}
 			if m.focus == FocusDiff {
+				if key.Matches(msg, m.keymap.Comment) {
+					return m, m.openEditor(false)
+				}
+				if key.Matches(msg, m.keymap.Suggestion) {
+					return m, m.openEditor(true)
+				}
 				var cmd tea.Cmd
 				m.diffview, cmd = m.diffview.Update(msg)
 				return m, cmd
@@ -231,10 +250,28 @@ func (m Model) View() string {
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + statusBar
 }
 
-func fileComments(comments []github.ReviewComment, path string) []diffview.Comment {
-	slog.Debug("fileComments", "target", path, "total", len(comments))
+func (m Model) openEditor(suggestion bool) tea.Cmd {
+	if m.currentFile == nil {
+		return nil
+	}
+	line, ok := m.diffview.CursorDiffLine()
+	if !ok {
+		return nil
+	}
+	return comment.Open(m.currentFile.Name(), line, suggestion)
+}
+
+func (m *Model) rerenderDiff() {
+	if m.currentFile == nil {
+		return
+	}
+	m.diffview.SetFile(*m.currentFile, m.diffComments(m.currentFile.Name()))
+}
+
+func (m Model) diffComments(path string) []diffview.Comment {
+	slog.Debug("diffComments", "target", path, "total", len(m.comments))
 	var result []diffview.Comment
-	for _, c := range comments {
+	for _, c := range m.comments {
 		if c.Path == path {
 			slog.Debug("comment match", "path", c.Path, "position", c.Position, "author", c.Author)
 			result = append(result, diffview.Comment{
@@ -246,6 +283,15 @@ func fileComments(comments []github.ReviewComment, path string) []diffview.Comme
 			slog.Debug("comment skip", "comment_path", c.Path, "target_path", path)
 		}
 	}
-	slog.Debug("fileComments done", "target", path, "matched", len(result))
+	for _, d := range m.drafts {
+		if d.Path == path {
+			result = append(result, diffview.Comment{
+				Body:     d.Body,
+				Position: d.Position,
+				Draft:    true,
+			})
+		}
+	}
+	slog.Debug("diffComments done", "target", path, "matched", len(result))
 	return result
 }

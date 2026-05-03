@@ -249,6 +249,88 @@ func TestRenderInlineComments(t *testing.T) {
 	assert.Greater(t, commentIdx, addIdx, "comment should appear after its target line")
 }
 
+func TestCursorDiffLineOnHunkHeader(t *testing.T) {
+	// testFile has no DiffPosition set, so cursor on hunk header (row 0) returns false
+	m := newTestModel()
+	assert.Equal(t, 0, m.cursor) // starts on hunk header
+	_, ok := m.CursorDiffLine()
+	assert.False(t, ok)
+}
+
+func TestCursorDiffLineOnDiffLine(t *testing.T) {
+	// layout: [0] hunk header, [1] foo (DiffPosition 1), [2] bar (DiffPosition 2)
+	f := diff.FileDiff{
+		NewName: "test.go",
+		Hunks: []diff.Hunk{{
+			Header: "@@ -1,2 +1,2 @@",
+			Lines: []diff.Line{
+				{Kind: diff.LineContext, Content: "foo", OldLine: 1, NewLine: 1, DiffPosition: 1},
+				{Kind: diff.LineAdd, Content: "bar", NewLine: 2, DiffPosition: 2},
+			},
+		}},
+	}
+	m := New(testConfig(), syntax.NewHighlighter(""))
+	m.SetSize(80, 20)
+	m.SetFile(f, nil)
+
+	m.cursor = 0 // hunk header row
+	_, ok := m.CursorDiffLine()
+	assert.False(t, ok)
+
+	m.cursor = 1 // first diff line (foo)
+	line, ok := m.CursorDiffLine()
+	assert.True(t, ok)
+	assert.Equal(t, 1, line.DiffPosition)
+
+	m.cursor = 2 // second diff line (bar)
+	line, ok = m.CursorDiffLine()
+	assert.True(t, ok)
+	assert.Equal(t, 2, line.DiffPosition)
+}
+
+func TestCursorDiffLineOnCommentFallsBack(t *testing.T) {
+	f := diff.FileDiff{
+		NewName: "test.go",
+		Hunks: []diff.Hunk{{
+			Header: "@@ -1,1 +1,1 @@",
+			Lines: []diff.Line{
+				{Kind: diff.LineContext, Content: "foo", OldLine: 1, NewLine: 1, DiffPosition: 1},
+			},
+		}},
+	}
+	m := New(testConfig(), syntax.NewHighlighter(""))
+	m.SetSize(80, 20)
+	m.SetFile(f, []Comment{{Author: "alice", Body: "note", Position: 1}})
+
+	// lines: [0] hunk header, [1] diff line, [2] comment header "@ alice", [3] comment body "  note"
+	m.cursor = 3 // on comment body row
+	line, ok := m.CursorDiffLine()
+	assert.True(t, ok)
+	assert.Equal(t, 1, line.DiffPosition)
+}
+
+func TestRenderDraftComment(t *testing.T) {
+	f := diff.FileDiff{
+		NewName: "test.go",
+		Hunks: []diff.Hunk{{
+			Header: "@@ -1,1 +1,1 @@",
+			Lines: []diff.Line{
+				{Kind: diff.LineContext, Content: "foo", OldLine: 1, NewLine: 1, DiffPosition: 1},
+			},
+		}},
+	}
+	m := New(testConfig(), syntax.NewHighlighter(""))
+	m.SetSize(80, 20)
+	m.SetFile(f, []Comment{
+		{Author: "alice", Body: "existing", Position: 1, Draft: false},
+		{Body: "my draft", Position: 1, Draft: true},
+	})
+
+	joined := strings.Join(m.lines, "\n")
+	assert.Contains(t, joined, "@ alice")
+	assert.Contains(t, joined, "[draft]")
+}
+
 func TestRenderMultilineComment(t *testing.T) {
 	f := diff.FileDiff{
 		NewName: "test.go",
