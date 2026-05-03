@@ -3,6 +3,7 @@ package diff
 
 import (
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strconv"
 	"strings"
@@ -15,6 +16,7 @@ var hunkRe = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@`)
 // position 1 is the first hunk header; each subsequent hunk header and diff
 // line increments the counter, which resets for each new file.
 func Parse(raw string) ([]FileDiff, error) {
+	slog.Debug("diff: parsing", "bytes", len(raw))
 	var files []FileDiff
 	var cur *FileDiff
 	curHunkIdx := -1
@@ -130,5 +132,6 @@ func Parse(raw string) ([]FileDiff, error) {
 	if cur != nil {
 		files = append(files, *cur)
 	}
+	slog.Debug("diff: parsed", "files", len(files))
 	return files, nil
 }

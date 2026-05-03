@@ -2,6 +2,7 @@
 package filelist
 
 import (
+	"log/slog"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -59,6 +60,7 @@ func New(cfg config.Config) Model {
 
 // SetFiles populates the list and resets the cursor to 0.
 func (m *Model) SetFiles(files []diff.FileDiff) {
+	slog.Debug("filelist: set files", "count", len(files))
 	m.files = files
 	m.cursor = 0
 }
@@ -89,11 +91,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case key.Matches(keyMsg, m.keys.up):
 		if m.cursor > 0 {
 			m.cursor--
+			slog.Debug("filelist: cursor", "index", m.cursor, "file", m.files[m.cursor].Name())
 			return m, m.selectCmd()
 		}
 	case key.Matches(keyMsg, m.keys.down):
 		if m.cursor < len(m.files)-1 {
 			m.cursor++
+			slog.Debug("filelist: cursor", "index", m.cursor, "file", m.files[m.cursor].Name())
 			return m, m.selectCmd()
 		}
 	}
@@ -135,4 +139,3 @@ func (m Model) fileStatus(f diff.FileDiff) (string, lipgloss.Style) {
 		return "M", m.styles.modified
 	}
 }
-

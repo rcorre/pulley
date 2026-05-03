@@ -2,6 +2,7 @@ package github
 
 import (
 	"fmt"
+	"log/slog"
 	"net/url"
 	"os/exec"
 	"strconv"
@@ -40,12 +41,15 @@ func (r *resolver) resolve(arg string) (*PRRef, error) {
 	if err != nil {
 		return nil, fmt.Errorf("get current repo: %w", err)
 	}
+	slog.Debug("resolving", "arg", arg, "host", host, "owner", owner, "repo", repo)
 
 	if n, err := strconv.Atoi(arg); err == nil {
+		slog.Debug("resolved as PR number", "number", n)
 		return &PRRef{Owner: owner, Repo: repo, Number: n}, nil
 	}
 
 	if ref, err := parseURL(arg, host); err == nil {
+		slog.Debug("resolved from URL", "owner", ref.Owner, "repo", ref.Repo, "number", ref.Number)
 		return ref, nil
 	}
 
@@ -57,11 +61,13 @@ func (r *resolver) resolve(arg string) (*PRRef, error) {
 			return nil, fmt.Errorf("get current branch: %w", err)
 		}
 	}
+	slog.Debug("resolving from branch", "branch", branch)
 
 	number, err := r.client.FindPRForBranch(owner, repo, branch)
 	if err != nil {
 		return nil, fmt.Errorf("find PR for branch %q: %w", branch, err)
 	}
+	slog.Debug("found PR for branch", "branch", branch, "number", number)
 
 	return &PRRef{Owner: owner, Repo: repo, Number: number}, nil
 }

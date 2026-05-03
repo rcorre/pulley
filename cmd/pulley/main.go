@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -11,6 +12,7 @@ import (
 
 	"github.com/rcorre/pulley/internal/config"
 	"github.com/rcorre/pulley/internal/github"
+	plog "github.com/rcorre/pulley/internal/log"
 	"github.com/rcorre/pulley/internal/tui"
 )
 
@@ -32,14 +34,23 @@ func run(_ *cobra.Command, args []string) error {
 		arg = args[0]
 	}
 
+	logCloser, err := plog.Init(os.Getenv("PULLEY_LOG"))
+	if err != nil {
+		return fmt.Errorf("init logging: %w", err)
+	}
+	defer func() { _ = logCloser.Close() }()
+	slog.Info("starting pulley", "arg", arg)
+
 	cfgDir, err := os.UserConfigDir()
 	if err != nil {
 		return fmt.Errorf("locate config dir: %w", err)
 	}
-	cfg, err := config.Load(filepath.Join(cfgDir, "pulley", "config.toml"))
+	cfgPath := filepath.Join(cfgDir, "pulley", "config.toml")
+	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+	slog.Info("config loaded", "path", cfgPath)
 
 	client, err := github.NewClient()
 	if err != nil {
@@ -50,12 +61,14 @@ func run(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("resolve PR: %w", err)
 	}
+	slog.Info("PR resolved", "owner", ref.Owner, "repo", ref.Repo, "number", ref.Number)
 
 	m := tui.New(client, *ref, cfg)
 	p := tea.NewProgram(m, tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("run TUI: %w", err)
 	}
+	slog.Info("TUI exited")
 	return nil
 }
 

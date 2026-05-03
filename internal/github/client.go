@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -47,6 +48,8 @@ func NewClient() (PRClient, error) {
 }
 
 func (c *ghClient) FindPRForBranch(owner, repo, branch string) (int, error) {
+	slog.Debug("github: FindPRForBranch", "owner", owner, "repo", repo, "branch", branch)
+	start := time.Now()
 	var prs []struct {
 		Number int `json:"number"`
 	}
@@ -57,10 +60,13 @@ func (c *ghClient) FindPRForBranch(owner, repo, branch string) (int, error) {
 	if len(prs) == 0 {
 		return 0, fmt.Errorf("no open PR for branch %q", branch)
 	}
+	slog.Debug("github: FindPRForBranch ok", "duration", time.Since(start))
 	return prs[0].Number, nil
 }
 
 func (c *ghClient) GetPR(owner, repo string, number int) (*PR, error) {
+	slog.Debug("github: GetPR", "owner", owner, "repo", repo, "number", number)
+	start := time.Now()
 	var result struct {
 		Repository struct {
 			PullRequest struct {
@@ -99,6 +105,7 @@ func (c *ghClient) GetPR(owner, repo string, number int) (*PR, error) {
 		return nil, fmt.Errorf("fetch PR #%d: %w", number, err)
 	}
 	pr := result.Repository.PullRequest
+	slog.Debug("github: GetPR ok", "duration", time.Since(start))
 	return &PR{
 		Number:  pr.Number,
 		Title:   pr.Title,
@@ -114,6 +121,8 @@ func (c *ghClient) GetPR(owner, repo string, number int) (*PR, error) {
 }
 
 func (c *ghClient) GetDiff(owner, repo string, number int) (string, error) {
+	slog.Debug("github: GetDiff", "owner", owner, "repo", repo, "number", number)
+	start := time.Now()
 	path := fmt.Sprintf("repos/%s/%s/pulls/%d", owner, repo, number)
 	resp, err := c.diffClient.Request("GET", path, nil)
 	if err != nil {
@@ -124,10 +133,13 @@ func (c *ghClient) GetDiff(owner, repo string, number int) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("read diff for PR #%d: %w", number, err)
 	}
+	slog.Debug("github: GetDiff ok", "duration", time.Since(start), "bytes", len(b))
 	return string(b), nil
 }
 
 func (c *ghClient) GetComments(owner, repo string, number int) ([]ReviewComment, error) {
+	slog.Debug("github: GetComments", "owner", owner, "repo", repo, "number", number)
+	start := time.Now()
 	var result struct {
 		Repository struct {
 			PullRequest struct {
@@ -189,12 +201,16 @@ func (c *ghClient) GetComments(owner, repo string, number int) ([]ReviewComment,
 				Author:    n.Author.Login,
 				CreatedAt: n.CreatedAt,
 			})
+			slog.Debug("github: comment", "path", n.Path, "position", n.OriginalPosition, "author", n.Author.Login)
 		}
 	}
+	slog.Debug("github: GetComments ok", "duration", time.Since(start), "comments", len(comments))
 	return comments, nil
 }
 
 func (c *ghClient) SubmitReview(owner, repo string, number int, event ReviewEvent, body string, comments []DraftComment) error {
+	slog.Debug("github: SubmitReview", "owner", owner, "repo", repo, "number", number, "event", event, "comments", len(comments))
+	start := time.Now()
 	type reviewRequest struct {
 		Body     string         `json:"body"`
 		Event    ReviewEvent    `json:"event"`
@@ -207,5 +223,9 @@ func (c *ghClient) SubmitReview(owner, repo string, number int, event ReviewEven
 	}
 
 	path := fmt.Sprintf("repos/%s/%s/pulls/%d/reviews", owner, repo, number)
-	return c.rest.Post(path, bytes.NewReader(reqBody), nil)
+	err = c.rest.Post(path, bytes.NewReader(reqBody), nil)
+	if err == nil {
+		slog.Debug("github: SubmitReview ok", "duration", time.Since(start))
+	}
+	return err
 }

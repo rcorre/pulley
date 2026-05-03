@@ -2,6 +2,7 @@
 package diffview
 
 import (
+	"log/slog"
 	"slices"
 	"strings"
 
@@ -51,6 +52,7 @@ func New(cfg Config, hlr *syntax.Highlighter) Model {
 
 // SetSize sets the viewport dimensions and adjusts scroll to keep cursor visible.
 func (m *Model) SetSize(w, h int) {
+	slog.Debug("diffview: size", "w", w, "h", h)
 	m.width = w
 	m.height = h
 	m.plain = lipgloss.NewStyle().MaxWidth(w)
@@ -62,6 +64,7 @@ func (m *Model) SetSize(w, h int) {
 // comments should be pre-filtered to only include those for this file.
 func (m *Model) SetFile(f diff.FileDiff, comments []Comment) {
 	m.lines, m.hunkRows = Render(f, m.cfg, m.hlr, comments)
+	slog.Debug("diffview: set file", "file", f.Name(), "lines", len(m.lines), "comments", len(comments))
 	m.cursor = 0
 	m.offset = 0
 }

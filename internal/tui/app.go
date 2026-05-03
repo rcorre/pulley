@@ -3,6 +3,7 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"charm.land/lipgloss/v2"
@@ -154,6 +155,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case PRLoadedMsg:
+		slog.Info("PR loaded", "title", msg.PR.Title, "files", len(msg.Diffs), "comments", len(msg.Comments))
 		m.pr = msg.PR
 		m.diffs = msg.Diffs
 		m.comments = msg.Comments
@@ -166,10 +168,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case filelist.FileSelectedMsg:
+		slog.Debug("file selected", "file", msg.File.Name())
 		m.diffview.SetFile(msg.File, fileComments(m.comments, msg.File.Name()))
 		return m, nil
 
 	case ErrMsg:
+		slog.Error("PR load failed", "err", msg.Err)
 		m.err = msg.Err
 		return m, nil
 
@@ -178,6 +182,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		if m.pr != nil {
+			slog.Debug("key", "key", msg.String(), "focus", m.focus)
 			if key.Matches(msg, m.keymap.Tab) {
 				m.focus = (m.focus + 1) % focusCount
 				return m, nil
@@ -227,15 +232,20 @@ func (m Model) View() string {
 }
 
 func fileComments(comments []github.ReviewComment, path string) []diffview.Comment {
+	slog.Debug("fileComments", "target", path, "total", len(comments))
 	var result []diffview.Comment
 	for _, c := range comments {
 		if c.Path == path {
+			slog.Debug("comment match", "path", c.Path, "position", c.Position, "author", c.Author)
 			result = append(result, diffview.Comment{
 				Author:   c.Author,
 				Body:     c.Body,
 				Position: c.Position,
 			})
+		} else {
+			slog.Debug("comment skip", "comment_path", c.Path, "target_path", path)
 		}
 	}
+	slog.Debug("fileComments done", "target", path, "matched", len(result))
 	return result
 }

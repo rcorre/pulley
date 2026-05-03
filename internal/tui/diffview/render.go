@@ -2,6 +2,7 @@ package diffview
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"charm.land/lipgloss/v2"
@@ -22,8 +23,10 @@ type Comment struct {
 func Render(f diff.FileDiff, cfg Config, hlr *syntax.Highlighter, comments []Comment) (lines []string, hunkRows []int) {
 	byPos := make(map[int][]Comment, len(comments))
 	for _, c := range comments {
+		slog.Debug("render: comment", "position", c.Position, "author", c.Author)
 		byPos[c.Position] = append(byPos[c.Position], c)
 	}
+	slog.Debug("render: byPos keys", "count", len(byPos))
 
 	filename := f.Name()
 	numWidth := lineNumWidth(f)
@@ -44,7 +47,9 @@ func Render(f diff.FileDiff, cfg Config, hlr *syntax.Highlighter, comments []Com
 		for i, l := range hunk.Lines {
 			lines = append(lines, renderLine(l, highlighted[i], numWidth, cfg))
 			if l.DiffPosition > 0 {
-				for _, c := range byPos[l.DiffPosition] {
+				cs := byPos[l.DiffPosition]
+				slog.Debug("render: line", "diffpos", l.DiffPosition, "comments", len(cs))
+				for _, c := range cs {
 					lines = append(lines, renderComment(c, indent, commentStyle)...)
 				}
 			}
