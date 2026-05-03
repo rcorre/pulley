@@ -308,16 +308,16 @@ func TestParseMultipleFiles(t *testing.T) {
 
 func TestPositionMapping(t *testing.T) {
 	// Diff with two hunks to verify positions span across hunks.
+	// DiffPosition matches GitHub's position scheme: position 1 is the first
+	// content line of the first hunk; hunk headers are not counted.
 	//
 	// Expected positions:
-	//   pos 1: @@ -1,3 +1,3 @@ (hunk 0 header)
-	//   pos 2: " ctx1"  old=1 new=1
-	//   pos 3: "-old1"  old=2
-	//   pos 4: "+new1"  new=2
-	//   pos 5: @@ -10,3 +10,3 @@ (hunk 1 header)
-	//   pos 6: " ctx2"  old=10 new=10
-	//   pos 7: "-old2"  old=11
-	//   pos 8: "+new2"  new=11
+	//   pos 1: " ctx1"  old=1 new=1
+	//   pos 2: "-old1"  old=2
+	//   pos 3: "+new1"  new=2
+	//   pos 4: " ctx2"  old=10 new=10
+	//   pos 5: "-old2"  old=11
+	//   pos 6: "+new2"  new=11
 	raw := join(
 		"diff --git a/foo.go b/foo.go",
 		"index abc..def 100644",
@@ -342,47 +342,47 @@ func TestPositionMapping(t *testing.T) {
 
 	// Verify DiffPosition values are assigned correctly.
 	h0 := fd.Hunks[0]
-	assert.Equal(t, 2, h0.Lines[0].DiffPosition) // ctx1
-	assert.Equal(t, 3, h0.Lines[1].DiffPosition) // old1
-	assert.Equal(t, 4, h0.Lines[2].DiffPosition) // new1
+	assert.Equal(t, 1, h0.Lines[0].DiffPosition) // ctx1
+	assert.Equal(t, 2, h0.Lines[1].DiffPosition) // old1
+	assert.Equal(t, 3, h0.Lines[2].DiffPosition) // new1
 
 	h1 := fd.Hunks[1]
-	assert.Equal(t, 6, h1.Lines[0].DiffPosition) // ctx2
-	assert.Equal(t, 7, h1.Lines[1].DiffPosition) // old2
-	assert.Equal(t, 8, h1.Lines[2].DiffPosition) // new2
+	assert.Equal(t, 4, h1.Lines[0].DiffPosition) // ctx2
+	assert.Equal(t, 5, h1.Lines[1].DiffPosition) // old2
+	assert.Equal(t, 6, h1.Lines[2].DiffPosition) // new2
 
 	// CommentPosition: new-file line -> diff position.
 	pos, ok := fd.CommentPosition(1) // ctx1 is new-file line 1
 	assert.True(t, ok)
-	assert.Equal(t, 2, pos)
+	assert.Equal(t, 1, pos)
 
 	pos, ok = fd.CommentPosition(2) // new1 is new-file line 2
 	assert.True(t, ok)
-	assert.Equal(t, 4, pos)
+	assert.Equal(t, 3, pos)
 
 	pos, ok = fd.CommentPosition(10) // ctx2 is new-file line 10
 	assert.True(t, ok)
-	assert.Equal(t, 6, pos)
+	assert.Equal(t, 4, pos)
 
 	pos, ok = fd.CommentPosition(11) // new2 is new-file line 11
 	assert.True(t, ok)
-	assert.Equal(t, 8, pos)
+	assert.Equal(t, 6, pos)
 
 	_, ok = fd.CommentPosition(99)
 	assert.False(t, ok)
 
 	// LineForPosition: diff position -> Line.
-	line, ok := fd.LineForPosition(2)
+	line, ok := fd.LineForPosition(1)
 	assert.True(t, ok)
 	assert.Equal(t, LineContext, line.Kind)
 	assert.Equal(t, "ctx1", line.Content)
 
-	line, ok = fd.LineForPosition(4)
+	line, ok = fd.LineForPosition(3)
 	assert.True(t, ok)
 	assert.Equal(t, LineAdd, line.Kind)
 	assert.Equal(t, "new1", line.Content)
 
-	line, ok = fd.LineForPosition(7)
+	line, ok = fd.LineForPosition(5)
 	assert.True(t, ok)
 	assert.Equal(t, LineRemove, line.Kind)
 	assert.Equal(t, "old2", line.Content)

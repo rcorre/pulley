@@ -13,8 +13,8 @@ var hunkRe = regexp.MustCompile(`^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@`)
 
 // Parse parses a unified git diff string and returns one FileDiff per file.
 // The DiffPosition field on each Line reflects GitHub's diff position scheme:
-// position 1 is the first hunk header; each subsequent hunk header and diff
-// line increments the counter, which resets for each new file.
+// position 1 is the first content line of the first hunk; each subsequent
+// content line increments the counter, which resets for each new file.
 func Parse(raw string) ([]FileDiff, error) {
 	slog.Debug("diff: parsing", "bytes", len(raw))
 	var files []FileDiff
@@ -84,7 +84,6 @@ func Parse(raw string) ([]FileDiff, error) {
 			if m == nil {
 				return nil, fmt.Errorf("malformed hunk header: %q", line)
 			}
-			diffPos++
 			oldStart, _ := strconv.Atoi(m[1])
 			oldCount := 1
 			if m[2] != "" {
