@@ -40,3 +40,11 @@ type FileDiff struct {
 	IsBinary bool
 	Hunks    []Hunk
 }
+
+// Name returns the display path for the file: NewName if set, otherwise OldName.
+func (f FileDiff) Name() string {
+	if f.NewName != "" {
+		return f.NewName
+	}
+	return f.OldName
+}

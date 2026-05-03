@@ -57,7 +57,7 @@ func testFile() diff.FileDiff {
 func newTestModel() Model {
 	m := New(testConfig(), syntax.NewHighlighter(""))
 	m.SetSize(80, 10)
-	m.SetFile(testFile())
+	m.SetFile(testFile(), nil)
 	return m
 }
 
@@ -78,7 +78,7 @@ func TestSetFileResetsPosition(t *testing.T) {
 	m.cursor = 5
 	m.offset = 3
 
-	m.SetFile(testFile())
+	m.SetFile(testFile(), nil)
 	assert.Equal(t, 0, m.cursor)
 	assert.Equal(t, 0, m.offset)
 }
@@ -210,4 +210,65 @@ func TestViewScrollsWithCursor(t *testing.T) {
 	// Offset should have advanced to keep cursor visible
 	assert.Equal(t, 5, m.cursor)
 	assert.GreaterOrEqual(t, m.offset, 3)
+}
+
+func TestRenderInlineComments(t *testing.T) {
+	f := diff.FileDiff{
+		NewName: "test.go",
+		Hunks: []diff.Hunk{
+			{
+				Header: "@@ -1,2 +1,2 @@",
+				Lines: []diff.Line{
+					{Kind: diff.LineContext, Content: "foo", OldLine: 1, NewLine: 1, DiffPosition: 1},
+					{Kind: diff.LineAdd, Content: "bar", NewLine: 2, DiffPosition: 2},
+				},
+			},
+		},
+	}
+	comments := []Comment{
+		{Author: "alice", Body: "looks good", Position: 2},
+	}
+	m := New(testConfig(), syntax.NewHighlighter(""))
+	m.SetSize(80, 20)
+	m.SetFile(f, comments)
+
+	joined := strings.Join(m.lines, "\n")
+	assert.Contains(t, joined, "@ alice")
+	assert.Contains(t, joined, "looks good")
+	// comment appears after the add line (position 2), not after the context line (position 1)
+	addIdx := -1
+	commentIdx := -1
+	for i, l := range m.lines {
+		if strings.Contains(l, " + ") {
+			addIdx = i
+		}
+		if strings.Contains(l, "@ alice") {
+			commentIdx = i
+		}
+	}
+	assert.Greater(t, commentIdx, addIdx, "comment should appear after its target line")
+}
+
+func TestRenderMultilineComment(t *testing.T) {
+	f := diff.FileDiff{
+		NewName: "test.go",
+		Hunks: []diff.Hunk{
+			{
+				Header: "@@ -1,1 +1,1 @@",
+				Lines: []diff.Line{
+					{Kind: diff.LineContext, Content: "foo", OldLine: 1, NewLine: 1, DiffPosition: 1},
+				},
+			},
+		},
+	}
+	comments := []Comment{
+		{Author: "bob", Body: "line one\nline two", Position: 1},
+	}
+	m := New(testConfig(), syntax.NewHighlighter(""))
+	m.SetSize(80, 20)
+	m.SetFile(f, comments)
+
+	joined := strings.Join(m.lines, "\n")
+	assert.Contains(t, joined, "line one")
+	assert.Contains(t, joined, "line two")
 }

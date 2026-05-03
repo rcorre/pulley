@@ -72,19 +72,21 @@ func newDiffViewConfig(cfg config.Config) diffview.Config {
 	c := cfg.Colors
 	k := cfg.Keys
 	return diffview.Config{
-		AddFg:    fgStyle(c.AddFg),
-		AddBg:    bgStyle(c.AddBg),
-		RemoveFg: fgStyle(c.RemoveFg),
-		RemoveBg: bgStyle(c.RemoveBg),
-		HunkFg:   fgStyle(c.HunkFg),
-		LineNum:  fgStyle(c.LineNum),
-		CursorBg: bgStyle(c.CursorBg),
-		Up:       k.Up,
-		Down:     k.Down,
-		PageUp:   k.PageUp,
-		PageDown: k.PageDown,
-		NextHunk: k.NextHunk,
-		PrevHunk: k.PrevHunk,
+		AddFg:     fgStyle(c.AddFg),
+		AddBg:     bgStyle(c.AddBg),
+		RemoveFg:  fgStyle(c.RemoveFg),
+		RemoveBg:  bgStyle(c.RemoveBg),
+		HunkFg:    fgStyle(c.HunkFg),
+		LineNum:   fgStyle(c.LineNum),
+		CursorBg:  bgStyle(c.CursorBg),
+		CommentFg: fgStyle(c.CommentFg),
+		CommentBg: bgStyle(c.CommentBg),
+		Up:        k.Up,
+		Down:      k.Down,
+		PageUp:    k.PageUp,
+		PageDown:  k.PageDown,
+		NextHunk:  k.NextHunk,
+		PrevHunk:  k.PrevHunk,
 	}
 }
 
@@ -158,12 +160,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.statusbar.SetPR(msg.PR)
 		m.filelist.SetFiles(msg.Diffs)
 		if len(msg.Diffs) > 0 {
-			m.diffview.SetFile(msg.Diffs[0])
+			f := msg.Diffs[0]
+			m.diffview.SetFile(f, fileComments(msg.Comments, f.Name()))
 		}
 		return m, nil
 
 	case filelist.FileSelectedMsg:
-		m.diffview.SetFile(msg.File)
+		m.diffview.SetFile(msg.File, fileComments(m.comments, msg.File.Name()))
 		return m, nil
 
 	case ErrMsg:
@@ -221,4 +224,18 @@ func (m Model) View() string {
 	rightPanel := m.rightPanelStyle.Render(m.diffview.View())
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + statusBar
+}
+
+func fileComments(comments []github.ReviewComment, path string) []diffview.Comment {
+	var result []diffview.Comment
+	for _, c := range comments {
+		if c.Path == path {
+			result = append(result, diffview.Comment{
+				Author:   c.Author,
+				Body:     c.Body,
+				Position: c.Position,
+			})
+		}
+	}
+	return result
 }

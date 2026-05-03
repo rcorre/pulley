@@ -13,19 +13,21 @@ import (
 
 // Config holds styles and key bindings for the diffview.
 type Config struct {
-	AddFg    lipgloss.Style
-	AddBg    lipgloss.Style
-	RemoveFg lipgloss.Style
-	RemoveBg lipgloss.Style
-	HunkFg   lipgloss.Style
-	LineNum  lipgloss.Style
-	CursorBg lipgloss.Style
-	Up       []string
-	Down     []string
-	PageUp   []string
-	PageDown []string
-	NextHunk []string
-	PrevHunk []string
+	AddFg     lipgloss.Style
+	AddBg     lipgloss.Style
+	RemoveFg  lipgloss.Style
+	RemoveBg  lipgloss.Style
+	HunkFg    lipgloss.Style
+	LineNum   lipgloss.Style
+	CursorBg  lipgloss.Style
+	CommentFg lipgloss.Style
+	CommentBg lipgloss.Style
+	Up        []string
+	Down      []string
+	PageUp    []string
+	PageDown  []string
+	NextHunk  []string
+	PrevHunk  []string
 }
 
 // Model is the scrollable diff viewport with cursor line tracking.
@@ -56,9 +58,10 @@ func (m *Model) SetSize(w, h int) {
 	m.clampScroll()
 }
 
-// SetFile renders the given FileDiff and resets cursor to the top.
-func (m *Model) SetFile(f diff.FileDiff) {
-	m.lines, m.hunkRows = Render(f, m.cfg, m.hlr)
+// SetFile renders the given FileDiff with inline comments and resets cursor to the top.
+// comments should be pre-filtered to only include those for this file.
+func (m *Model) SetFile(f diff.FileDiff, comments []Comment) {
+	m.lines, m.hunkRows = Render(f, m.cfg, m.hlr, comments)
 	m.cursor = 0
 	m.offset = 0
 }

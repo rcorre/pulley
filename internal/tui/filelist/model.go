@@ -113,7 +113,7 @@ func (m Model) View() string {
 	var sb strings.Builder
 	for i, f := range m.files {
 		status, statusStyle := m.fileStatus(f)
-		line := statusStyle.Render(status) + " " + displayName(f)
+		line := statusStyle.Render(status) + " " + f.Name()
 		if i == m.cursor {
 			line = m.styles.cursorLine.Render(line)
 		}
@@ -136,9 +136,3 @@ func (m Model) fileStatus(f diff.FileDiff) (string, lipgloss.Style) {
 	}
 }
 
-func displayName(f diff.FileDiff) string {
-	if f.NewName != "" {
-		return f.NewName
-	}
-	return f.OldName
-}
