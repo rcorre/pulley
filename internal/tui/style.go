@@ -36,3 +36,11 @@ func NewStyles(cfg config.ColorConfig) Styles {
 func colorVal(cv config.ColorValue) color.Color {
 	return lipgloss.Color(cv.String())
 }
+
+func fgStyle(cv config.ColorValue) lipgloss.Style {
+	return lipgloss.NewStyle().Foreground(colorVal(cv))
+}
+
+func bgStyle(cv config.ColorValue) lipgloss.Style {
+	return lipgloss.NewStyle().Background(colorVal(cv))
+}

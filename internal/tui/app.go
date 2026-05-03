@@ -12,6 +12,8 @@ import (
 	"github.com/rcorre/pulley/internal/config"
 	"github.com/rcorre/pulley/internal/diff"
 	"github.com/rcorre/pulley/internal/github"
+	"github.com/rcorre/pulley/internal/syntax"
+	"github.com/rcorre/pulley/internal/tui/diffview"
 	"github.com/rcorre/pulley/internal/tui/filelist"
 	"github.com/rcorre/pulley/internal/tui/statusbar"
 )
@@ -35,6 +37,7 @@ type Model struct {
 	statusbar statusbar.Model
 	spinner   spinner.Model
 	filelist  filelist.Model
+	diffview  diffview.Model
 	focus     Focus
 
 	leftPanelStyle  lipgloss.Style
@@ -60,7 +63,28 @@ func New(client github.PRClient, ref github.PRRef, cfg config.Config) Model {
 		statusbar: statusbar.New(cfg.Colors),
 		spinner:   s,
 		filelist:  filelist.New(cfg),
+		diffview:  diffview.New(newDiffViewConfig(cfg), syntax.NewHighlighter("")),
 		focus:     FocusFileList,
+	}
+}
+
+func newDiffViewConfig(cfg config.Config) diffview.Config {
+	c := cfg.Colors
+	k := cfg.Keys
+	return diffview.Config{
+		AddFg:    fgStyle(c.AddFg),
+		AddBg:    bgStyle(c.AddBg),
+		RemoveFg: fgStyle(c.RemoveFg),
+		RemoveBg: bgStyle(c.RemoveBg),
+		HunkFg:   fgStyle(c.HunkFg),
+		LineNum:  fgStyle(c.LineNum),
+		CursorBg: bgStyle(c.CursorBg),
+		Up:       k.Up,
+		Down:     k.Down,
+		PageUp:   k.PageUp,
+		PageDown: k.PageDown,
+		NextHunk: k.NextHunk,
+		PrevHunk: k.PrevHunk,
 	}
 }
 
@@ -119,10 +143,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.statusbar.SetWidth(msg.Width)
 		fileListWidth := msg.Width / 4
+		diffWidth := msg.Width - fileListWidth
 		contentHeight := msg.Height - 1
 		m.filelist.SetSize(fileListWidth, contentHeight)
+		m.diffview.SetSize(diffWidth, contentHeight)
 		m.leftPanelStyle = lipgloss.NewStyle().Width(fileListWidth).Height(contentHeight)
-		m.rightPanelStyle = lipgloss.NewStyle().Width(msg.Width - fileListWidth).Height(contentHeight)
+		m.rightPanelStyle = lipgloss.NewStyle().Width(diffWidth).Height(contentHeight)
 		return m, nil
 
 	case PRLoadedMsg:
@@ -131,10 +157,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.comments = msg.Comments
 		m.statusbar.SetPR(msg.PR)
 		m.filelist.SetFiles(msg.Diffs)
+		if len(msg.Diffs) > 0 {
+			m.diffview.SetFile(msg.Diffs[0])
+		}
 		return m, nil
 
 	case filelist.FileSelectedMsg:
-		// TODO: trigger diff render for selected file when diffview is added
+		m.diffview.SetFile(msg.File)
 		return m, nil
 
 	case ErrMsg:
@@ -153,6 +182,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.focus == FocusFileList {
 				var cmd tea.Cmd
 				m.filelist, cmd = m.filelist.Update(msg)
+				return m, cmd
+			}
+			if m.focus == FocusDiff {
+				var cmd tea.Cmd
+				m.diffview, cmd = m.diffview.Update(msg)
 				return m, cmd
 			}
 		}
@@ -184,7 +218,7 @@ func (m Model) View() string {
 	}
 
 	leftPanel := m.leftPanelStyle.Render(m.filelist.View())
-	rightPanel := m.rightPanelStyle.Render(fmt.Sprintf("%d file(s) changed", len(m.diffs)))
+	rightPanel := m.rightPanelStyle.Render(m.diffview.View())
 
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + statusBar
 }

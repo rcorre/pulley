@@ -44,6 +44,8 @@ type KeyConfig struct {
 	SubmitReview []string `toml:"submit_review"`
 	NextFile     []string `toml:"next_file"`
 	PrevFile     []string `toml:"prev_file"`
+	NextHunk     []string `toml:"next_hunk"`
+	PrevHunk     []string `toml:"prev_hunk"`
 	Confirm      []string `toml:"confirm"`
 	Cancel       []string `toml:"cancel"`
 }

@@ -13,6 +13,8 @@ func defaultKeys() KeyConfig {
 		SubmitReview: []string{"S"},
 		NextFile:     []string{"n"},
 		PrevFile:     []string{"p"},
+		NextHunk:     []string{"]"},
+		PrevHunk:     []string{"["},
 		Confirm:      []string{"enter", "y"},
 		Cancel:       []string{"esc"},
 	}
