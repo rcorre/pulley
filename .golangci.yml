@@ -12,19 +12,13 @@ linters:
     - testifylint
     - unconvert
     - unparam
-
-linters-settings:
-  revive:
+  settings:
+    gosec:
+      excludes:
+        - G304 # file path from variable — expected for config/editor temp files
+  exclusions:
     rules:
-      - name: exported
-        severity: warning
-  gosec:
-    excludes:
-      - G304 # file path from variable — expected for config/editor temp files
-
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - gosec
-        - unparam
+      - path: _test\.go
+        linters:
+          - gosec
+          - unparam
