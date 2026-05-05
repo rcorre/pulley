@@ -23,9 +23,16 @@ var rootCmd = &cobra.Command{
 
 Without arguments, opens the PR associated with the current branch.
 Accepts a PR number, URL, or branch name, matching the behavior of 'gh pr view'.`,
-	Args:         cobra.MaximumNArgs(1),
-	RunE:         run,
-	SilenceUsage: true,
+	Args:              cobra.MaximumNArgs(1),
+	RunE:              run,
+	SilenceUsage:      true,
+	ValidArgsFunction: noFileCompletion,
+}
+
+// noFileCompletion tells the shell not to fall back to filename completion for
+// the PR argument (numbers/URLs/branches can't be completed from the filesystem).
+func noFileCompletion(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
+	return nil, cobra.ShellCompDirectiveNoFileComp
 }
 
 func run(_ *cobra.Command, args []string) error {

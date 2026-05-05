@@ -223,3 +223,121 @@ func TestQuit(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("q")})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
+
+func TestRetry(t *testing.T) {
+	blocking := make(chan struct{})
+	m := newTestModel(&blockingClient{done: blocking})
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() {
+		close(blocking)
+		if err := tm.Quit(); err != nil {
+			t.Logf("quit: %v", err)
+		}
+	})
+
+	tm.Send(tui.ErrMsg{Err: errors.New("network failure")})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("network failure")) && bytes.Contains(bts, []byte("retry"))
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Loading"))
+	}, teatest.WithDuration(3*time.Second))
+}
+
+func TestWindowResize(t *testing.T) {
+	pr := &github.PR{Number: 42, Title: "Resize test"}
+	rawDiff := `diff --git a/foo.go b/foo.go
+index 0000000..1111111 100644
+--- a/foo.go
++++ b/foo.go
+@@ -1,1 +1,2 @@
+ package main
++// added
+`
+	diffs, err := diff.Parse(rawDiff)
+	require.NoError(t, err)
+
+	m := newTestModel(&mockClient{pr: pr, rawDiff: rawDiff})
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() {
+		if err := tm.Quit(); err != nil {
+			t.Logf("quit: %v", err)
+		}
+	})
+
+	tm.Send(tui.PRLoadedMsg{PR: pr, Diffs: diffs, Comments: nil})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Resize test"))
+	}, teatest.WithDuration(3*time.Second))
+
+	tm.Send(tea.WindowSizeMsg{Width: 120, Height: 40})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Resize test"))
+	}, teatest.WithDuration(3*time.Second))
+}
+
+func TestEndToEnd(t *testing.T) {
+	pr := &github.PR{Number: 42, Title: "End to end", Owner: "owner", Repo: "repo"}
+	rawDiff := `diff --git a/foo.go b/foo.go
+index 0000000..1111111 100644
+--- a/foo.go
++++ b/foo.go
+@@ -1,1 +1,2 @@
+ package main
++// added
+diff --git a/bar.go b/bar.go
+index 0000000..2222222 100644
+--- a/bar.go
++++ b/bar.go
+@@ -1,1 +1,2 @@
+ package main
++// bar
+`
+	diffs, err := diff.Parse(rawDiff)
+	require.NoError(t, err)
+
+	client := &reviewCapture{
+		mockClient: mockClient{pr: pr, rawDiff: rawDiff},
+	}
+	m := newTestModel(client)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(120, 40))
+	t.Cleanup(func() {
+		if err := tm.Quit(); err != nil {
+			t.Logf("quit: %v", err)
+		}
+	})
+
+	// Load PR data.
+	tm.Send(tui.PRLoadedMsg{PR: pr, Diffs: diffs, Comments: nil})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("End to end"))
+	}, teatest.WithDuration(3*time.Second))
+
+	// Navigate to second file in the file list.
+	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("bar.go"))
+	}, teatest.WithDuration(3*time.Second))
+
+	// Add a draft comment.
+	draft := github.DraftComment{Path: "bar.go", Position: 1, Body: "looks good"}
+	tm.Send(comment.DraftAddedMsg{Draft: draft})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("1 draft"))
+	}, teatest.WithDuration(3*time.Second))
+
+	// Submit the review directly (bypasses $EDITOR).
+	tm.Send(review.SubmitMsg{Event: github.EventApprove, Body: "LGTM"})
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Review submitted!"))
+	}, teatest.WithDuration(3*time.Second))
+
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	assert.True(t, client.submitted)
+	assert.Equal(t, github.EventApprove, client.event)
+	require.Len(t, client.comments, 1)
+	assert.Equal(t, draft, client.comments[0])
+}

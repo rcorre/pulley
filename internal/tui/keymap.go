@@ -20,6 +20,7 @@ type Keymap struct {
 	PrevFile     key.Binding
 	Confirm      key.Binding
 	Cancel       key.Binding
+	Retry        key.Binding
 }
 
 // NewKeymap builds a Keymap from the config's key settings.
@@ -38,5 +39,6 @@ func NewKeymap(cfg config.KeyConfig) Keymap {
 		PrevFile:     key.NewBinding(key.WithKeys(cfg.PrevFile...)),
 		Confirm:      key.NewBinding(key.WithKeys(cfg.Confirm...)),
 		Cancel:       key.NewBinding(key.WithKeys(cfg.Cancel...)),
+		Retry:        key.NewBinding(key.WithKeys(cfg.Retry...)),
 	}
 }

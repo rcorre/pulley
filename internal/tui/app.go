@@ -232,6 +232,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keymap.Quit) {
 			return m, tea.Quit
 		}
+		if m.err != nil && key.Matches(msg, m.keymap.Retry) {
+			m.err = nil
+			return m, m.loadPR()
+		}
 		if m.pr != nil {
 			slog.Debug("key", "key", msg.String(), "focus", m.focus)
 			if key.Matches(msg, m.keymap.Tab) && m.focus != FocusReview {
@@ -279,7 +283,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View implements tea.Model.
 func (m Model) View() string {
 	if m.err != nil {
-		return "Error: " + m.err.Error() + "\n"
+		retryKey := "r"
+		if keys := m.keymap.Retry.Keys(); len(keys) > 0 {
+			retryKey = keys[0]
+		}
+		return "Error: " + m.err.Error() + "\n(" + retryKey + ": retry)\n"
 	}
 
 	statusBar := m.statusbar.View()

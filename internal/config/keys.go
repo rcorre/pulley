@@ -17,5 +17,6 @@ func defaultKeys() KeyConfig {
 		PrevHunk:     []string{"["},
 		Confirm:      []string{"enter", "y"},
 		Cancel:       []string{"esc"},
+		Retry:        []string{"r"},
 	}
 }

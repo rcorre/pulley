@@ -49,6 +49,7 @@ type KeyConfig struct {
 	PrevHunk     []string `toml:"prev_hunk"`
 	Confirm      []string `toml:"confirm"`
 	Cancel       []string `toml:"cancel"`
+	Retry        []string `toml:"retry"`
 }
 
 // Default returns a Config populated with sensible defaults.
