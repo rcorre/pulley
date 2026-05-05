@@ -16,3 +16,8 @@ type PRLoadedMsg struct {
 type ErrMsg struct {
 	Err error
 }
+
+// ReviewSubmittedMsg is sent after a review submission attempt completes.
+type ReviewSubmittedMsg struct {
+	Err error
+}

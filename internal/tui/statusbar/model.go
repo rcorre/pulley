@@ -18,6 +18,7 @@ const keyHints = "q:quit "
 type Model struct {
 	pr         *github.PR
 	draftCount int
+	message    string
 	width      int
 	style      lipgloss.Style
 }
@@ -37,6 +38,9 @@ func (m *Model) SetPR(pr *github.PR) { m.pr = pr }
 // SetDraftCount sets the number of unsaved draft comments.
 func (m *Model) SetDraftCount(n int) { m.draftCount = n }
 
+// SetMessage sets a transient status message shown in place of the PR title.
+func (m *Model) SetMessage(msg string) { m.message = msg }
+
 // SetWidth sets the render width of the status bar.
 func (m *Model) SetWidth(w int) { m.width = w }
 
@@ -52,10 +56,14 @@ func (m Model) View() string {
 		return ""
 	}
 	var left, right string
-	if m.pr == nil {
+	switch {
+	case m.message != "":
+		left = " " + m.message
+		right = keyHints
+	case m.pr == nil:
 		left = " Loading..."
 		right = keyHints
-	} else {
+	default:
 		left = fmt.Sprintf(" #%d %s", m.pr.Number, m.pr.Title)
 		if m.draftCount > 0 {
 			right = fmt.Sprintf("%d draft(s)  %s", m.draftCount, keyHints)

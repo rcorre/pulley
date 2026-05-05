@@ -17,17 +17,19 @@ import (
 	"github.com/rcorre/pulley/internal/tui/comment"
 	"github.com/rcorre/pulley/internal/tui/diffview"
 	"github.com/rcorre/pulley/internal/tui/filelist"
+	"github.com/rcorre/pulley/internal/tui/review"
 	"github.com/rcorre/pulley/internal/tui/statusbar"
 )
 
 // Focus identifies which panel has keyboard focus.
 type Focus int
 
-// Focus constants for the two panels that can receive keyboard input.
+// Focus constants for panels that can receive keyboard input.
+// Tab cycles only FocusFileList and FocusDiff; FocusReview is entered/exited explicitly.
 const (
 	FocusFileList Focus = iota
 	FocusDiff
-	focusCount // sentinel: number of focusable panels
+	FocusReview
 )
 
 // Model is the root bubbletea model for pulley.
@@ -40,6 +42,7 @@ type Model struct {
 	spinner   spinner.Model
 	filelist  filelist.Model
 	diffview  diffview.Model
+	review    review.Model
 	focus     Focus
 
 	leftPanelStyle  lipgloss.Style
@@ -59,16 +62,28 @@ type Model struct {
 // New creates the root Model. It does not start fetching until Init is called.
 func New(client github.PRClient, ref github.PRRef, cfg config.Config) Model {
 	s := spinner.New(spinner.WithSpinner(spinner.Dot))
+	km := NewKeymap(cfg.Keys)
 	return Model{
 		client:    client,
 		ref:       ref,
-		keymap:    NewKeymap(cfg.Keys),
+		keymap:    km,
 		styles:    NewStyles(cfg.Colors),
 		statusbar: statusbar.New(cfg.Colors),
 		spinner:   s,
 		filelist:  filelist.New(cfg),
 		diffview:  diffview.New(newDiffViewConfig(cfg), syntax.NewHighlighter("")),
+		review:    review.New(newReviewConfig(km, cfg.Colors.CursorBg)),
 		focus:     FocusFileList,
+	}
+}
+
+func newReviewConfig(km Keymap, cursorBg config.ColorValue) review.Config {
+	return review.Config{
+		Up:      km.Up,
+		Down:    km.Down,
+		Confirm: km.Confirm,
+		Cancel:  km.Cancel,
+		Cursor:  bgStyle(cursorBg),
 	}
 }
 
@@ -190,14 +205,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.Err
 		return m, nil
 
+	case review.CancelMsg:
+		m.focus = FocusDiff
+		return m, nil
+
+	case review.SubmitMsg:
+		slog.Info("submitting review", "event", msg.Event)
+		return m, m.submitReview(msg.Event, msg.Body)
+
+	case ReviewSubmittedMsg:
+		m.focus = FocusDiff
+		if msg.Err != nil {
+			slog.Error("review submission failed", "err", msg.Err)
+			m.statusbar.SetMessage("Error: " + msg.Err.Error())
+		} else {
+			slog.Info("review submitted")
+			m.drafts = nil
+			m.statusbar.SetDraftCount(0)
+			m.statusbar.SetMessage("Review submitted!")
+			m.rerenderDiff()
+		}
+		return m, nil
+
 	case tea.KeyMsg:
+		m.statusbar.SetMessage("")
 		if key.Matches(msg, m.keymap.Quit) {
 			return m, tea.Quit
 		}
 		if m.pr != nil {
 			slog.Debug("key", "key", msg.String(), "focus", m.focus)
-			if key.Matches(msg, m.keymap.Tab) {
-				m.focus = (m.focus + 1) % focusCount
+			if key.Matches(msg, m.keymap.Tab) && m.focus != FocusReview {
+				m.focus = (m.focus + 1) % FocusReview
 				return m, nil
 			}
 			if m.focus == FocusFileList {
@@ -212,8 +250,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if key.Matches(msg, m.keymap.Suggestion) {
 					return m, m.openEditor(true)
 				}
+				if key.Matches(msg, m.keymap.SubmitReview) {
+					m.review.Open(m.pr, m.drafts)
+					m.focus = FocusReview
+					return m, nil
+				}
 				var cmd tea.Cmd
 				m.diffview, cmd = m.diffview.Update(msg)
+				return m, cmd
+			}
+			if m.focus == FocusReview {
+				var cmd tea.Cmd
+				m.review, cmd = m.review.Update(msg)
 				return m, cmd
 			}
 		}
@@ -244,10 +292,21 @@ func (m Model) View() string {
 		return statusBar
 	}
 
+	if m.focus == FocusReview {
+		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, m.review.View())
+		return content + "\n" + statusBar
+	}
+
 	leftPanel := m.leftPanelStyle.Render(m.filelist.View())
 	rightPanel := m.rightPanelStyle.Render(m.diffview.View())
-
 	return lipgloss.JoinHorizontal(lipgloss.Top, leftPanel, rightPanel) + "\n" + statusBar
+}
+
+func (m Model) submitReview(event github.ReviewEvent, body string) tea.Cmd {
+	return func() tea.Msg {
+		err := m.client.SubmitReview(m.ref.Owner, m.ref.Repo, m.ref.Number, event, body, m.drafts)
+		return ReviewSubmittedMsg{Err: err}
+	}
 }
 
 func (m Model) openEditor(suggestion bool) tea.Cmd {

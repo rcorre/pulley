@@ -217,6 +217,9 @@ func (c *ghClient) SubmitReview(owner, repo string, number int, event ReviewEven
 		Comments []DraftComment `json:"comments"`
 	}
 
+	if comments == nil {
+		comments = []DraftComment{}
+	}
 	reqBody, err := json.Marshal(reviewRequest{Body: body, Event: event, Comments: comments})
 	if err != nil {
 		return fmt.Errorf("marshal review: %w", err)

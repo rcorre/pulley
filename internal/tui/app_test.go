@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,10 @@ import (
 	"github.com/rcorre/pulley/internal/diff"
 	"github.com/rcorre/pulley/internal/github"
 	"github.com/rcorre/pulley/internal/tui"
+	"github.com/rcorre/pulley/internal/tui/comment"
+	"github.com/rcorre/pulley/internal/tui/review"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // stubClient provides no-op implementations of the rarely-needed PRClient methods.
@@ -120,6 +125,91 @@ func TestErrMsg(t *testing.T) {
 
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("network failure"))
+	}, teatest.WithDuration(3*time.Second))
+}
+
+// reviewCapture wraps mockClient to capture SubmitReview calls.
+type reviewCapture struct {
+	mockClient
+	mu        sync.Mutex
+	submitErr error
+	submitted bool
+	event     github.ReviewEvent
+	body      string
+	comments  []github.DraftComment
+}
+
+func (c *reviewCapture) SubmitReview(_, _ string, _ int, event github.ReviewEvent, body string, comments []github.DraftComment) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.submitted = true
+	c.event = event
+	c.body = body
+	c.comments = comments
+	return c.submitErr
+}
+
+func TestSubmitReviewSuccess(t *testing.T) {
+	pr := &github.PR{Number: 42, Title: "Add feature", Owner: "owner", Repo: "repo"}
+	rawDiff := `diff --git a/foo.go b/foo.go
+index 0000000..1111111 100644
+--- a/foo.go
++++ b/foo.go
+@@ -1,1 +1,2 @@
+ package main
++// added
+`
+	diffs, err := diff.Parse(rawDiff)
+	require.NoError(t, err)
+
+	client := &reviewCapture{
+		mockClient: mockClient{pr: pr, rawDiff: rawDiff},
+	}
+	m := newTestModel(client)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() {
+		if err := tm.Quit(); err != nil {
+			t.Logf("quit: %v", err)
+		}
+	})
+
+	draft := github.DraftComment{Path: "foo.go", Position: 1, Body: "nice change"}
+	tm.Send(tui.PRLoadedMsg{PR: pr, Diffs: diffs, Comments: nil})
+	tm.Send(comment.DraftAddedMsg{Draft: draft})
+	tm.Send(review.SubmitMsg{Event: github.EventApprove, Body: "LGTM"})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("Review submitted!"))
+	}, teatest.WithDuration(3*time.Second))
+
+	client.mu.Lock()
+	defer client.mu.Unlock()
+	assert.True(t, client.submitted)
+	assert.Equal(t, github.EventApprove, client.event)
+	assert.Equal(t, "LGTM", client.body)
+	require.Len(t, client.comments, 1)
+	assert.Equal(t, draft, client.comments[0])
+}
+
+func TestSubmitReviewError(t *testing.T) {
+	pr := &github.PR{Number: 1, Title: "Fix bug", Owner: "owner", Repo: "repo"}
+	client := &reviewCapture{
+		mockClient: mockClient{pr: pr, rawDiff: ""},
+		submitErr:  errors.New("API failure"),
+	}
+	m := newTestModel(client)
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() {
+		if err := tm.Quit(); err != nil {
+			t.Logf("quit: %v", err)
+		}
+	})
+
+	tm.Send(tui.PRLoadedMsg{PR: pr, Diffs: nil, Comments: nil})
+	tm.Send(review.SubmitMsg{Event: github.EventComment, Body: ""})
+
+	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
+		return bytes.Contains(bts, []byte("API failure"))
 	}, teatest.WithDuration(3*time.Second))
 }
 
