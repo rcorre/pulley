@@ -232,6 +232,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if key.Matches(msg, m.keymap.Quit) {
 			return m, tea.Quit
 		}
+		if key.Matches(msg, m.keymap.Suspend) {
+			return m, tea.Suspend
+		}
 		if m.err != nil && key.Matches(msg, m.keymap.Retry) {
 			m.err = nil
 			return m, m.loadPR()
@@ -283,11 +286,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // View implements tea.Model.
 func (m Model) View() string {
 	if m.err != nil {
-		retryKey := "r"
+		msg := "Error: " + m.err.Error() + "\n"
 		if keys := m.keymap.Retry.Keys(); len(keys) > 0 {
-			retryKey = keys[0]
+			msg += "(" + keys[0] + ": retry)\n"
 		}
-		return "Error: " + m.err.Error() + "\n(" + retryKey + ": retry)\n"
+		return msg
 	}
 
 	statusBar := m.statusbar.View()

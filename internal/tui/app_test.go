@@ -213,6 +213,18 @@ func TestSubmitReviewError(t *testing.T) {
 	}, teatest.WithDuration(3*time.Second))
 }
 
+func TestSuspend(t *testing.T) {
+	m := newTestModel(&mockClient{
+		pr:      &github.PR{Number: 1, Title: "Test"},
+		rawDiff: "",
+	})
+	_, cmd := m.Update(tea.KeyMsg{Type: tea.KeyCtrlZ})
+	msg := cmd()
+	if _, ok := msg.(tea.SuspendMsg); !ok {
+		t.Fatalf("expected SuspendMsg, got %T", msg)
+	}
+}
+
 func TestQuit(t *testing.T) {
 	m := newTestModel(&mockClient{
 		pr:      &github.PR{Number: 1, Title: "Test"},

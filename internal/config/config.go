@@ -50,6 +50,7 @@ type KeyConfig struct {
 	Confirm      []string `toml:"confirm"`
 	Cancel       []string `toml:"cancel"`
 	Retry        []string `toml:"retry"`
+	Suspend      []string `toml:"suspend"`
 }
 
 // Default returns a Config populated with sensible defaults.

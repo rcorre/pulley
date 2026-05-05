@@ -18,5 +18,6 @@ func defaultKeys() KeyConfig {
 		Confirm:      []string{"enter", "y"},
 		Cancel:       []string{"esc"},
 		Retry:        []string{"r"},
+		Suspend:      []string{"ctrl+z"},
 	}
 }

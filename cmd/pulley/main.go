@@ -29,8 +29,6 @@ Accepts a PR number, URL, or branch name, matching the behavior of 'gh pr view'.
 	ValidArgsFunction: noFileCompletion,
 }
 
-// noFileCompletion tells the shell not to fall back to filename completion for
-// the PR argument (numbers/URLs/branches can't be completed from the filesystem).
 func noFileCompletion(_ *cobra.Command, _ []string, _ string) ([]string, cobra.ShellCompDirective) {
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }

@@ -21,6 +21,7 @@ type Keymap struct {
 	Confirm      key.Binding
 	Cancel       key.Binding
 	Retry        key.Binding
+	Suspend      key.Binding
 }
 
 // NewKeymap builds a Keymap from the config's key settings.
@@ -40,5 +41,6 @@ func NewKeymap(cfg config.KeyConfig) Keymap {
 		Confirm:      key.NewBinding(key.WithKeys(cfg.Confirm...)),
 		Cancel:       key.NewBinding(key.WithKeys(cfg.Cancel...)),
 		Retry:        key.NewBinding(key.WithKeys(cfg.Retry...)),
+		Suspend:      key.NewBinding(key.WithKeys(cfg.Suspend...)),
 	}
 }
