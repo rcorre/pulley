@@ -69,18 +69,18 @@ pulley/
 
 ## Architecture
 
-### Component Hierarchy & Focus Model
+### Component Hierarchy
 
 ```
 app (root)
-├── filelist   (left, ~25% width)   ← Tab toggles ←→
-├── diffview   (right, ~75% width)  ← Tab toggles ←→
+├── filelist   (left, ~25% width)   ← ctrl+n/ctrl+p cycle files
+├── diffview   (right, ~75% width)  ← all nav/comment keys always active
 ├── comment    ($EDITOR suspend)    ← 'c'/'s' suspends TUI, opens $EDITOR
 ├── review     (overlay, modal)     ← 'S' opens, Esc closes
 └── statusbar  (bottom, full width)
 ```
 
-Focus enum: `FocusFileList | FocusDiff | FocusReview`. Keys route to focused component only. Comment editing suspends the TUI entirely via `tea.Exec()`.
+No focus model. The review modal is the only modal state (`reviewOpen bool`). All diff navigation and comment keys are always active; `ctrl+n`/`ctrl+p` cycle files directly. Comment editing suspends the TUI entirely via `tea.Exec()`.
 
 ### Data Flow
 

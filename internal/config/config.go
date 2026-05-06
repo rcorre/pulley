@@ -39,7 +39,6 @@ type KeyConfig struct {
 	Down         []string `toml:"down"`
 	PageUp       []string `toml:"page_up"`
 	PageDown     []string `toml:"page_down"`
-	Tab          []string `toml:"tab"`
 	Comment      []string `toml:"comment"`
 	Suggestion   []string `toml:"suggestion"`
 	SubmitReview []string `toml:"submit_review"`

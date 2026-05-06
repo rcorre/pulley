@@ -12,7 +12,6 @@ type Keymap struct {
 	Down         key.Binding
 	PageUp       key.Binding
 	PageDown     key.Binding
-	Tab          key.Binding
 	Comment      key.Binding
 	Suggestion   key.Binding
 	SubmitReview key.Binding
@@ -32,7 +31,6 @@ func NewKeymap(cfg config.KeyConfig) Keymap {
 		Down:         key.NewBinding(key.WithKeys(cfg.Down...)),
 		PageUp:       key.NewBinding(key.WithKeys(cfg.PageUp...)),
 		PageDown:     key.NewBinding(key.WithKeys(cfg.PageDown...)),
-		Tab:          key.NewBinding(key.WithKeys(cfg.Tab...)),
 		Comment:      key.NewBinding(key.WithKeys(cfg.Comment...)),
 		Suggestion:   key.NewBinding(key.WithKeys(cfg.Suggestion...)),
 		SubmitReview: key.NewBinding(key.WithKeys(cfg.SubmitReview...)),

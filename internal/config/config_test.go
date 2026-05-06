@@ -21,7 +21,8 @@ func TestDefault_Sane(t *testing.T) {
 	assert.NotEmpty(t, cfg.Keys.Quit, "quit keys should have defaults")
 	assert.NotEmpty(t, cfg.Keys.Up, "up keys should have defaults")
 	assert.NotEmpty(t, cfg.Keys.Down, "down keys should have defaults")
-	assert.NotEmpty(t, cfg.Keys.Tab, "tab keys should have defaults")
+	assert.NotEmpty(t, cfg.Keys.NextFile, "next_file keys should have defaults")
+	assert.NotEmpty(t, cfg.Keys.PrevFile, "prev_file keys should have defaults")
 	assert.NotEmpty(t, cfg.Keys.Comment, "comment keys should have defaults")
 	assert.NotEmpty(t, cfg.Keys.SubmitReview, "submit_review keys should have defaults")
 }

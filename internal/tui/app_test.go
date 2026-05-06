@@ -327,8 +327,8 @@ index 0000000..2222222 100644
 		return bytes.Contains(bts, []byte("End to end"))
 	}, teatest.WithDuration(3*time.Second))
 
-	// Navigate to second file in the file list.
-	tm.Send(tea.KeyMsg{Type: tea.KeyDown})
+	// Navigate to second file via ctrl+n.
+	tm.Send(tea.KeyMsg{Type: tea.KeyCtrlN})
 	teatest.WaitFor(t, tm.Output(), func(bts []byte) bool {
 		return bytes.Contains(bts, []byte("bar.go"))
 	}, teatest.WithDuration(3*time.Second))

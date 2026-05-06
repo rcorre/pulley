@@ -26,7 +26,8 @@ URL, or branch name - same as `gh pr view`.
 
 | Key | Action |
 |-----|--------|
-| `tab` | Switch focus between file list and diff |
+| `ctrl+n` | Next file |
+| `ctrl+p` | Previous file |
 | `j` / `down` | Move cursor down |
 | `k` / `up` | Move cursor up |
 | `ctrl+d` / `pgdown` | Page down |
@@ -74,7 +75,8 @@ up            = ["up", "k"]
 down          = ["down", "j"]
 page_up       = ["pgup", "ctrl+u"]
 page_down     = ["pgdown", "ctrl+d"]
-tab           = ["tab"]
+next_file     = ["ctrl+n"]
+prev_file     = ["ctrl+p"]
 comment       = ["c"]
 suggestion    = ["s"]
 submit_review = ["S"]

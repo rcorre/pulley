@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rcorre/pulley/internal/config"
 	"github.com/rcorre/pulley/internal/diff"
@@ -26,17 +25,11 @@ type fileStyles struct {
 	cursorLine lipgloss.Style // cursorBg background + MaxWidth, updated in SetSize
 }
 
-type keymap struct {
-	up   key.Binding
-	down key.Binding
-}
-
 // Model is the left-panel file list showing all files changed in the PR.
 type Model struct {
 	files  []diff.FileDiff
 	cursor int
 	styles fileStyles
-	keys   keymap
 }
 
 // New creates a Model from the given config.
@@ -50,10 +43,6 @@ func New(cfg config.Config) Model {
 			modified:   lipgloss.NewStyle().Foreground(lipgloss.Color(c.FileModFg.String())),
 			cursorBg:   cursorBg,
 			cursorLine: lipgloss.NewStyle().Background(lipgloss.Color(cursorBg)),
-		},
-		keys: keymap{
-			up:   key.NewBinding(key.WithKeys(cfg.Keys.Up...)),
-			down: key.NewBinding(key.WithKeys(cfg.Keys.Down...)),
 		},
 	}
 }
@@ -81,27 +70,19 @@ func (m Model) SelectedIndex() int { return m.cursor }
 // Init implements tea.Model.
 func (m Model) Init() tea.Cmd { return nil }
 
-// Update handles key input when the file list has focus.
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
-	if !ok || len(m.files) == 0 {
-		return m, nil
+// NextFile advances the cursor to the next file, wrapping around to the first.
+func (m *Model) NextFile() tea.Cmd { return m.moveFile(1) }
+
+// PrevFile moves the cursor to the previous file, wrapping around to the last.
+func (m *Model) PrevFile() tea.Cmd { return m.moveFile(-1) }
+
+func (m *Model) moveFile(delta int) tea.Cmd {
+	if len(m.files) == 0 {
+		return nil
 	}
-	switch {
-	case key.Matches(keyMsg, m.keys.up):
-		if m.cursor > 0 {
-			m.cursor--
-			slog.Debug("filelist: cursor", "index", m.cursor, "file", m.files[m.cursor].Name())
-			return m, m.selectCmd()
-		}
-	case key.Matches(keyMsg, m.keys.down):
-		if m.cursor < len(m.files)-1 {
-			m.cursor++
-			slog.Debug("filelist: cursor", "index", m.cursor, "file", m.files[m.cursor].Name())
-			return m, m.selectCmd()
-		}
-	}
-	return m, nil
+	m.cursor = (m.cursor + delta + len(m.files)) % len(m.files)
+	slog.Debug("filelist: cursor", "index", m.cursor, "file", m.files[m.cursor].Name())
+	return m.selectCmd()
 }
 
 func (m Model) selectCmd() tea.Cmd {

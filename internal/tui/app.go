@@ -21,29 +21,18 @@ import (
 	"github.com/rcorre/pulley/internal/tui/statusbar"
 )
 
-// Focus identifies which panel has keyboard focus.
-type Focus int
-
-// Focus constants for panels that can receive keyboard input.
-// Tab cycles only FocusFileList and FocusDiff; FocusReview is entered/exited explicitly.
-const (
-	FocusFileList Focus = iota
-	FocusDiff
-	FocusReview
-)
-
 // Model is the root bubbletea model for pulley.
 type Model struct {
-	client    github.PRClient
-	ref       github.PRRef
-	keymap    Keymap
-	styles    Styles
-	statusbar statusbar.Model
-	spinner   spinner.Model
-	filelist  filelist.Model
-	diffview  diffview.Model
-	review    review.Model
-	focus     Focus
+	client     github.PRClient
+	ref        github.PRRef
+	keymap     Keymap
+	styles     Styles
+	statusbar  statusbar.Model
+	spinner    spinner.Model
+	filelist   filelist.Model
+	diffview   diffview.Model
+	review     review.Model
+	reviewOpen bool
 
 	leftPanelStyle  lipgloss.Style
 	rightPanelStyle lipgloss.Style
@@ -73,7 +62,6 @@ func New(client github.PRClient, ref github.PRRef, cfg config.Config) Model {
 		filelist:  filelist.New(cfg),
 		diffview:  diffview.New(newDiffViewConfig(cfg), syntax.NewHighlighter("")),
 		review:    review.New(newReviewConfig(km, cfg.Colors.CursorBg)),
-		focus:     FocusFileList,
 	}
 }
 
@@ -206,7 +194,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case review.CancelMsg:
-		m.focus = FocusDiff
+		m.reviewOpen = false
 		return m, nil
 
 	case review.SubmitMsg:
@@ -214,7 +202,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.submitReview(msg.Event, msg.Body)
 
 	case ReviewSubmittedMsg:
-		m.focus = FocusDiff
+		m.reviewOpen = false
 		if msg.Err != nil {
 			slog.Error("review submission failed", "err", msg.Err)
 			m.statusbar.SetMessage("Error: " + msg.Err.Error())
@@ -240,37 +228,32 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, m.loadPR()
 		}
 		if m.pr != nil {
-			slog.Debug("key", "key", msg.String(), "focus", m.focus)
-			if key.Matches(msg, m.keymap.Tab) && m.focus != FocusReview {
-				m.focus = (m.focus + 1) % FocusReview
-				return m, nil
-			}
-			if m.focus == FocusFileList {
-				var cmd tea.Cmd
-				m.filelist, cmd = m.filelist.Update(msg)
-				return m, cmd
-			}
-			if m.focus == FocusDiff {
-				if key.Matches(msg, m.keymap.Comment) {
-					return m, m.openEditor(false)
-				}
-				if key.Matches(msg, m.keymap.Suggestion) {
-					return m, m.openEditor(true)
-				}
-				if key.Matches(msg, m.keymap.SubmitReview) {
-					m.review.Open(m.pr, m.drafts)
-					m.focus = FocusReview
-					return m, nil
-				}
-				var cmd tea.Cmd
-				m.diffview, cmd = m.diffview.Update(msg)
-				return m, cmd
-			}
-			if m.focus == FocusReview {
+			slog.Debug("key", "key", msg.String())
+			if m.reviewOpen {
 				var cmd tea.Cmd
 				m.review, cmd = m.review.Update(msg)
 				return m, cmd
 			}
+			if key.Matches(msg, m.keymap.Comment) {
+				return m, m.openEditor(false)
+			}
+			if key.Matches(msg, m.keymap.Suggestion) {
+				return m, m.openEditor(true)
+			}
+			if key.Matches(msg, m.keymap.SubmitReview) {
+				m.review.Open(m.pr, m.drafts)
+				m.reviewOpen = true
+				return m, nil
+			}
+			if key.Matches(msg, m.keymap.NextFile) {
+				return m, m.filelist.NextFile()
+			}
+			if key.Matches(msg, m.keymap.PrevFile) {
+				return m, m.filelist.PrevFile()
+			}
+			var cmd tea.Cmd
+			m.diffview, cmd = m.diffview.Update(msg)
+			return m, cmd
 		}
 	}
 
@@ -303,7 +286,7 @@ func (m Model) View() string {
 		return statusBar
 	}
 
-	if m.focus == FocusReview {
+	if m.reviewOpen {
 		content := lipgloss.Place(m.width, m.height-1, lipgloss.Center, lipgloss.Center, m.review.View())
 		return content + "\n" + statusBar
 	}

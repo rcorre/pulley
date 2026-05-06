@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/rcorre/pulley/internal/config"
 	"github.com/rcorre/pulley/internal/diff"
 	"github.com/rcorre/pulley/internal/tui/filelist"
@@ -24,19 +23,6 @@ func newModel() filelist.Model {
 	return m
 }
 
-func sendKey(m filelist.Model, k string) (filelist.Model, tea.Msg) {
-	return sendKeyMsg(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(k)})
-}
-
-func sendKeyMsg(m filelist.Model, msg tea.KeyMsg) (filelist.Model, tea.Msg) {
-	updated, cmd := m.Update(msg)
-	var result tea.Msg
-	if cmd != nil {
-		result = cmd()
-	}
-	return updated, result
-}
-
 func TestView_ShowsFileNames(t *testing.T) {
 	m := newModel()
 	view := m.View()
@@ -54,75 +40,78 @@ func TestView_ShowsStatusIndicators(t *testing.T) {
 	assert.Contains(t, lines[2], "D")
 }
 
-func TestNavDown_MovesAndEmitsMsg(t *testing.T) {
+func TestNextFile_MovesAndEmitsMsg(t *testing.T) {
 	m := newModel()
 	assert.Equal(t, 0, m.SelectedIndex())
 
-	m, msg := sendKey(m, "j")
+	cmd := m.NextFile()
 	assert.Equal(t, 1, m.SelectedIndex())
-	sel, ok := msg.(filelist.FileSelectedMsg)
+	require.NotNil(t, cmd)
+	sel, ok := cmd().(filelist.FileSelectedMsg)
 	require.True(t, ok)
 	assert.Equal(t, 1, sel.Index)
 	assert.Equal(t, "modified.go", sel.File.NewName)
 }
 
-func TestNavUp_MovesAndEmitsMsg(t *testing.T) {
+func TestPrevFile_MovesAndEmitsMsg(t *testing.T) {
 	m := newModel()
-	m, _ = sendKey(m, "j")
-	m, _ = sendKey(m, "j")
+	m.NextFile()
+	m.NextFile()
 	assert.Equal(t, 2, m.SelectedIndex())
 
-	m, msg := sendKey(m, "k")
+	cmd := m.PrevFile()
 	assert.Equal(t, 1, m.SelectedIndex())
-	sel, ok := msg.(filelist.FileSelectedMsg)
+	require.NotNil(t, cmd)
+	sel, ok := cmd().(filelist.FileSelectedMsg)
 	require.True(t, ok)
 	assert.Equal(t, 1, sel.Index)
 }
 
-func TestNavDown_StopsAtEnd(t *testing.T) {
+func TestNextFile_WrapsAtEnd(t *testing.T) {
 	m := newModel()
-	m, _ = sendKey(m, "j")
-	m, _ = sendKey(m, "j")
+	m.NextFile()
+	m.NextFile()
 	assert.Equal(t, 2, m.SelectedIndex())
 
-	m, msg := sendKey(m, "j")
+	cmd := m.NextFile()
+	assert.Equal(t, 0, m.SelectedIndex())
+	require.NotNil(t, cmd)
+	sel, ok := cmd().(filelist.FileSelectedMsg)
+	require.True(t, ok)
+	assert.Equal(t, 0, sel.Index)
+}
+
+func TestPrevFile_WrapsAtStart(t *testing.T) {
+	m := newModel()
+	assert.Equal(t, 0, m.SelectedIndex())
+
+	cmd := m.PrevFile()
 	assert.Equal(t, 2, m.SelectedIndex())
-	assert.Nil(t, msg)
+	require.NotNil(t, cmd)
+	sel, ok := cmd().(filelist.FileSelectedMsg)
+	require.True(t, ok)
+	assert.Equal(t, 2, sel.Index)
 }
 
-func TestNavUp_StopsAtStart(t *testing.T) {
-	m := newModel()
-	assert.Equal(t, 0, m.SelectedIndex())
-
-	m, msg := sendKey(m, "k")
-	assert.Equal(t, 0, m.SelectedIndex())
-	assert.Nil(t, msg)
+func TestNextFile_EmptyFiles_ReturnsNil(t *testing.T) {
+	m := filelist.New(config.Default())
+	cmd := m.NextFile()
+	assert.Nil(t, cmd)
 }
 
-func TestNavArrowKeys(t *testing.T) {
-	m := newModel()
-	m, msg := sendKeyMsg(m, tea.KeyMsg{Type: tea.KeyDown})
-	assert.Equal(t, 1, m.SelectedIndex())
-	assert.IsType(t, filelist.FileSelectedMsg{}, msg)
-
-	m, msg = sendKeyMsg(m, tea.KeyMsg{Type: tea.KeyUp})
-	assert.Equal(t, 0, m.SelectedIndex())
-	assert.IsType(t, filelist.FileSelectedMsg{}, msg)
+func TestPrevFile_EmptyFiles_ReturnsNil(t *testing.T) {
+	m := filelist.New(config.Default())
+	cmd := m.PrevFile()
+	assert.Nil(t, cmd)
 }
 
 func TestSetFiles_ResetsCursor(t *testing.T) {
 	m := newModel()
-	m, _ = sendKey(m, "j")
+	m.NextFile()
 	assert.Equal(t, 1, m.SelectedIndex())
 
 	m.SetFiles(testFiles)
 	assert.Equal(t, 0, m.SelectedIndex())
-}
-
-func TestEmptyFiles_NoMsg(t *testing.T) {
-	m := filelist.New(config.Default())
-	_, msg := sendKey(m, "j")
-	assert.Nil(t, msg)
 }
 
 func TestDisplayName_UsesNewName(t *testing.T) {
