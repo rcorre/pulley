@@ -16,10 +16,8 @@ type Config struct {
 // ColorConfig holds color settings for UI elements.
 // All defaults use ANSI indexed values 0-15 for base16 palette compatibility.
 type ColorConfig struct {
-	AddFg      ColorValue `toml:"add_fg"`
-	AddBg      ColorValue `toml:"add_bg"`
-	RemoveFg   ColorValue `toml:"remove_fg"`
-	RemoveBg   ColorValue `toml:"remove_bg"`
+	AddFg    ColorValue `toml:"add_fg"`
+	RemoveFg ColorValue `toml:"remove_fg"`
 	HunkFg     ColorValue `toml:"hunk_fg"`
 	FileHeader ColorValue `toml:"file_header"`
 	LineNum    ColorValue `toml:"line_num"`
@@ -39,6 +37,8 @@ type KeyConfig struct {
 	Down         []string `toml:"down"`
 	PageUp       []string `toml:"page_up"`
 	PageDown     []string `toml:"page_down"`
+	HalfPageUp   []string `toml:"half_page_up"`
+	HalfPageDown []string `toml:"half_page_down"`
 	Comment      []string `toml:"comment"`
 	Suggestion   []string `toml:"suggestion"`
 	SubmitReview []string `toml:"submit_review"`

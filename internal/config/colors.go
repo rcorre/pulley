@@ -47,16 +47,16 @@ func (c *ColorValue) UnmarshalTOML(v any) error {
 
 func defaultColors() ColorConfig {
 	return ColorConfig{
-		AddFg:      ANSI(2), // green
-		RemoveFg:   ANSI(1), // red
-		HunkFg:     ANSI(6), // cyan
-		FileHeader: ANSI(4), // blue
-		LineNum:    ANSI(8), // bright black (dark gray)
-		CursorBg:   ANSI(8), // bright black (subtle highlight)
-		CommentFg:  ANSI(3), // yellow
-		DraftFg:    ANSI(5), // magenta
-		FileModFg:  ANSI(3), // yellow
-		StatusFg:   ANSI(0), // black
-		StatusBg:   ANSI(4), // blue
+		AddFg:      ANSI(2),  // green
+		RemoveFg:   ANSI(1),  // red
+		HunkFg:     ANSI(6),  // cyan
+		FileHeader: ANSI(4),  // blue
+		LineNum:    ANSI(18), // bright black (dark gray)
+		CursorBg:   ANSI(19), // bright black (subtle highlight)
+		CommentFg:  ANSI(3),  // yellow
+		DraftFg:    ANSI(5),  // magenta
+		FileModFg:  ANSI(3),  // yellow
+		StatusFg:   ANSI(0),  // black
+		StatusBg:   ANSI(20), // blue
 	}
 }

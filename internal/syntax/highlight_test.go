@@ -6,7 +6,7 @@ import (
 )
 
 func TestHighlightLines_GoSource(t *testing.T) {
-	h := NewHighlighter("")
+	h := NewHighlighter()
 	lines := []string{
 		"package main",
 		"",
@@ -23,21 +23,19 @@ func TestHighlightLines_GoSource(t *testing.T) {
 		t.Fatalf("expected %d lines, got %d", len(lines), len(result))
 	}
 
-	hadAnsi := false
-	for _, line := range result {
-		if strings.ContainsAny(line, "\x1b") {
-			hadAnsi = true
-			break
-		}
+	joined := strings.Join(result, "\n")
+	if !strings.Contains(joined, "\x1b[") {
+		t.Error("expected ANSI escape codes in highlighted output")
 	}
-
-	if !hadAnsi {
-		t.Error("expected at least some lines to contain ANSI escape codes")
+	// TTY16 emits low-ANSI SGR codes (e.g. \x1b[31m); TTY256 would emit \x1b[38;5;Nm.
+	// The presence of "38;5;" indicates the wrong formatter is in use.
+	if strings.Contains(joined, "38;5;") {
+		t.Error("expected low-ANSI SGR codes, not 256-color codes: output should not contain 38;5;")
 	}
 }
 
 func TestHighlightLines_UnknownLang(t *testing.T) {
-	h := NewHighlighter("")
+	h := NewHighlighter()
 	lines := []string{
 		"some random content",
 		"that is not code",
@@ -57,7 +55,7 @@ func TestHighlightLines_UnknownLang(t *testing.T) {
 }
 
 func TestHighlightLines_EmptyInput(t *testing.T) {
-	h := NewHighlighter("")
+	h := NewHighlighter()
 	result := h.HighlightLines("main.go", []string{})
 
 	if len(result) != 0 {
@@ -66,7 +64,7 @@ func TestHighlightLines_EmptyInput(t *testing.T) {
 }
 
 func TestHighlightLines_EmptyContent(t *testing.T) {
-	h := NewHighlighter("")
+	h := NewHighlighter()
 	lines := []string{"", ""}
 	result := h.HighlightLines("main.go", lines)
 

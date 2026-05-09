@@ -60,7 +60,7 @@ func New(client github.PRClient, ref github.PRRef, cfg config.Config) Model {
 		statusbar: statusbar.New(cfg.Colors),
 		spinner:   s,
 		filelist:  filelist.New(cfg),
-		diffview:  diffview.New(newDiffViewConfig(cfg), syntax.NewHighlighter("")),
+		diffview:  diffview.New(newDiffViewConfig(cfg), syntax.NewHighlighter()),
 		review:    review.New(newReviewConfig(km, cfg.Colors.CursorBg)),
 	}
 }
@@ -79,22 +79,22 @@ func newDiffViewConfig(cfg config.Config) diffview.Config {
 	c := cfg.Colors
 	k := cfg.Keys
 	return diffview.Config{
-		AddFg:     fgStyle(c.AddFg),
-		AddBg:     bgStyle(c.AddBg),
-		RemoveFg:  fgStyle(c.RemoveFg),
-		RemoveBg:  bgStyle(c.RemoveBg),
+		AddFg:    fgStyle(c.AddFg),
+		RemoveFg: fgStyle(c.RemoveFg),
 		HunkFg:    fgStyle(c.HunkFg),
 		LineNum:   fgStyle(c.LineNum),
 		CursorBg:  bgStyle(c.CursorBg),
 		CommentFg: fgStyle(c.CommentFg),
 		CommentBg: bgStyle(c.CommentBg),
 		DraftFg:   fgStyle(c.DraftFg),
-		Up:        k.Up,
-		Down:      k.Down,
-		PageUp:    k.PageUp,
-		PageDown:  k.PageDown,
-		NextHunk:  k.NextHunk,
-		PrevHunk:  k.PrevHunk,
+		Up:           k.Up,
+		Down:         k.Down,
+		PageUp:       k.PageUp,
+		PageDown:     k.PageDown,
+		HalfPageUp:   k.HalfPageUp,
+		HalfPageDown: k.HalfPageDown,
+		NextHunk:     k.NextHunk,
+		PrevHunk:     k.PrevHunk,
 	}
 }
 

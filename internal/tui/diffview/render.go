@@ -95,12 +95,20 @@ func renderLine(l diff.Line, highlighted string, numWidth int, cfg Config) strin
 
 	switch l.Kind {
 	case diff.LineAdd:
-		return gutter + " " + cfg.AddFg.Render("+") + " " + cfg.AddBg.Render(highlighted)
+		return preserveBg(gutter + " " + cfg.AddFg.Render("+ "+l.Content))
 	case diff.LineRemove:
-		return gutter + " " + cfg.RemoveFg.Render("-") + " " + cfg.RemoveBg.Render(highlighted)
+		return preserveBg(gutter + " " + cfg.RemoveFg.Render("- "+l.Content))
 	default:
 		return gutter + "   " + highlighted
 	}
+}
+
+// preserveBg replaces full SGR resets with foreground-only resets so the outer
+// background (applied in View) survives sub-style closers and chroma token
+// resets. lipgloss v2 closes with \x1b[m (empty SGR); chroma uses \x1b[0m.
+func preserveBg(s string) string {
+	s = strings.ReplaceAll(s, "\x1b[0m", "\x1b[39m")
+	return strings.ReplaceAll(s, "\x1b[m", "\x1b[39m")
 }
 
 // lineNumWidth computes the minimum column width needed to display all line numbers.

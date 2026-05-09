@@ -18,11 +18,10 @@ type Highlighter struct {
 }
 
 // NewHighlighter creates a Highlighter with base16 ANSI color mappings.
-// profile is currently unused but reserved for future terminal profile detection.
-func NewHighlighter(_ string) *Highlighter {
+func NewHighlighter() *Highlighter {
 	return &Highlighter{
 		style:     base16Style(),
-		formatter: formatters.TTY256,
+		formatter: formatters.TTY16,
 	}
 }
 
@@ -73,7 +72,6 @@ func (h *Highlighter) HighlightLines(filename string, lines []string) []string {
 // Uses #ansiblack through #ansiwhite for base16 palette compatibility.
 func base16Style() *chroma.Style {
 	return styles.Register(chroma.MustNewStyle("base16", chroma.StyleEntries{
-		chroma.Background:             "#ansilightgray",
 		chroma.Text:                   "#ansilightgray",
 		chroma.Whitespace:             "#ansidarkgray",
 		chroma.Error:                  "#ansired",

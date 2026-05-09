@@ -14,22 +14,22 @@ import (
 
 // Config holds styles and key bindings for the diffview.
 type Config struct {
-	AddFg     lipgloss.Style
-	AddBg     lipgloss.Style
-	RemoveFg  lipgloss.Style
-	RemoveBg  lipgloss.Style
-	HunkFg    lipgloss.Style
+	AddFg    lipgloss.Style
+	RemoveFg lipgloss.Style
+	HunkFg   lipgloss.Style
 	LineNum   lipgloss.Style
 	CursorBg  lipgloss.Style
 	CommentFg lipgloss.Style
 	CommentBg lipgloss.Style
 	DraftFg   lipgloss.Style
-	Up        []string
-	Down      []string
-	PageUp    []string
-	PageDown  []string
-	NextHunk  []string
-	PrevHunk  []string
+	Up           []string
+	Down         []string
+	PageUp       []string
+	PageDown     []string
+	HalfPageUp   []string
+	HalfPageDown []string
+	NextHunk     []string
+	PrevHunk     []string
 }
 
 // Model is the scrollable diff viewport with cursor line tracking.
@@ -98,6 +98,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.moveCursor(m.height)
 	case matches(m.cfg.PageUp, keyMsg):
 		m.moveCursor(-m.height)
+	case matches(m.cfg.HalfPageDown, keyMsg):
+		m.moveCursor(m.height / 2)
+	case matches(m.cfg.HalfPageUp, keyMsg):
+		m.moveCursor(-m.height / 2)
 	case matches(m.cfg.NextHunk, keyMsg):
 		m.jumpHunk(1)
 	case matches(m.cfg.PrevHunk, keyMsg):
@@ -116,11 +120,11 @@ func (m Model) View() string {
 
 	rendered := make([]string, 0, end-m.offset)
 	for i := m.offset; i < end; i++ {
+		st := m.plain
 		if i == m.cursor {
-			rendered = append(rendered, m.cursorSt.Render(m.lines[i]))
-		} else {
-			rendered = append(rendered, m.plain.Render(m.lines[i]))
+			st = m.cursorSt
 		}
+		rendered = append(rendered, st.Render(m.lines[i]))
 	}
 
 	return strings.Join(rendered, "\n")

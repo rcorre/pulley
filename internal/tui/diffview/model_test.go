@@ -13,18 +13,18 @@ import (
 
 func testConfig() Config {
 	return Config{
-		Up:       []string{"k"},
-		Down:     []string{"j"},
-		PageUp:   []string{"ctrl+u"},
-		PageDown: []string{"ctrl+d"},
-		NextHunk: []string{"]"},
-		PrevHunk: []string{"["},
+		Up:           []string{"k"},
+		Down:         []string{"j"},
+		PageUp:       []string{"ctrl+b"},
+		PageDown:     []string{"ctrl+f"},
+		HalfPageUp:   []string{"ctrl+u"},
+		HalfPageDown: []string{"ctrl+d"},
+		NextHunk:     []string{"]"},
+		PrevHunk:     []string{"["},
 		HunkFg:   lipgloss.NewStyle(),
 		LineNum:  lipgloss.NewStyle(),
 		AddFg:    lipgloss.NewStyle(),
-		AddBg:    lipgloss.NewStyle(),
 		RemoveFg: lipgloss.NewStyle(),
-		RemoveBg: lipgloss.NewStyle(),
 		CursorBg: lipgloss.NewStyle(),
 	}
 }
@@ -55,7 +55,7 @@ func testFile() diff.FileDiff {
 }
 
 func newTestModel() Model {
-	m := New(testConfig(), syntax.NewHighlighter(""))
+	m := New(testConfig(), syntax.NewHighlighter())
 	m.SetSize(80, 10)
 	m.SetFile(testFile(), nil)
 	return m
@@ -140,11 +140,31 @@ func TestCursorClampAtEnd(t *testing.T) {
 	assert.Equal(t, len(m.lines)-1, m.cursor)
 }
 
+func TestHalfPageDown(t *testing.T) {
+	m := newTestModel()
+	m.SetSize(80, 4)
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+	m = updated
+	assert.Equal(t, 2, m.cursor)
+}
+
+func TestHalfPageUp(t *testing.T) {
+	m := newTestModel()
+	m.SetSize(80, 4)
+	m.cursor = 6
+	m.offset = 4
+
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlU})
+	m = updated
+	assert.Equal(t, 4, m.cursor)
+}
+
 func TestPageDown(t *testing.T) {
 	m := newTestModel()
 	m.SetSize(80, 3)
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlD})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlF})
 	m = updated
 	assert.Equal(t, 3, m.cursor)
 }
@@ -155,7 +175,7 @@ func TestPageUp(t *testing.T) {
 	m.cursor = 5
 	m.offset = 3
 
-	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlU})
+	updated, _ := m.Update(tea.KeyMsg{Type: tea.KeyCtrlB})
 	m = updated
 	assert.Equal(t, 2, m.cursor)
 }
@@ -228,7 +248,7 @@ func TestRenderInlineComments(t *testing.T) {
 	comments := []Comment{
 		{Author: "alice", Body: "looks good", Position: 2},
 	}
-	m := New(testConfig(), syntax.NewHighlighter(""))
+	m := New(testConfig(), syntax.NewHighlighter())
 	m.SetSize(80, 20)
 	m.SetFile(f, comments)
 
@@ -269,7 +289,7 @@ func TestCursorDiffLineOnDiffLine(t *testing.T) {
 			},
 		}},
 	}
-	m := New(testConfig(), syntax.NewHighlighter(""))
+	m := New(testConfig(), syntax.NewHighlighter())
 	m.SetSize(80, 20)
 	m.SetFile(f, nil)
 
@@ -298,7 +318,7 @@ func TestCursorDiffLineOnCommentFallsBack(t *testing.T) {
 			},
 		}},
 	}
-	m := New(testConfig(), syntax.NewHighlighter(""))
+	m := New(testConfig(), syntax.NewHighlighter())
 	m.SetSize(80, 20)
 	m.SetFile(f, []Comment{{Author: "alice", Body: "note", Position: 1}})
 
@@ -319,7 +339,7 @@ func TestRenderDraftComment(t *testing.T) {
 			},
 		}},
 	}
-	m := New(testConfig(), syntax.NewHighlighter(""))
+	m := New(testConfig(), syntax.NewHighlighter())
 	m.SetSize(80, 20)
 	m.SetFile(f, []Comment{
 		{Author: "alice", Body: "existing", Position: 1, Draft: false},
@@ -346,7 +366,7 @@ func TestRenderMultilineComment(t *testing.T) {
 	comments := []Comment{
 		{Author: "bob", Body: "line one\nline two", Position: 1},
 	}
-	m := New(testConfig(), syntax.NewHighlighter(""))
+	m := New(testConfig(), syntax.NewHighlighter())
 	m.SetSize(80, 20)
 	m.SetFile(f, comments)
 
